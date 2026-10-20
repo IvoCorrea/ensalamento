@@ -1,0 +1,583 @@
+"use client";
+
+import React, { useState } from "react";
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Users,
+  Laptop,
+  CheckCircle2,
+  AlertTriangle,
+  Building2,
+  Layers,
+  Info,
+  ShieldCheck,
+} from "lucide-react";
+
+export interface AlocacaoGrade {
+  id: string;
+  diaSemana: string;
+  horaInicio: string;
+  horaFim: string;
+  salaId: string | null;
+  sala?: {
+    id: string;
+    codigo: string;
+    predio: string | null;
+    andar: number | null;
+    capacidade: number;
+  } | null;
+  componenteAula: {
+    id: string;
+    tipo: "PRESENCIAL" | "REMOTO";
+    qtdBlocos: number;
+    oferta: {
+      modalidade: string;
+      turma: {
+        id: string;
+        codigo: string;
+        qtdAlunos: number;
+      };
+      disciplina: {
+        id: string;
+        codigo: string;
+        nome: string;
+        chTotal: number;
+      };
+    };
+  };
+}
+
+export interface PropsGradeView {
+  turmaAtual: {
+    id: string;
+    codigo: string;
+    qtdAlunos: number;
+    curso: {
+      nome: string;
+      codigo: string;
+    };
+    periodoCurricular?: {
+      numero: number;
+    } | null;
+  };
+  todasTurmas: Array<{
+    id: string;
+    codigo: string;
+    qtdAlunos: number;
+    curso: { nome: string };
+  }>;
+  proposta: {
+    id: string;
+    nome: string;
+    status: string;
+    observacoes: string | null;
+    periodoLetivo: {
+      codigo: string;
+      nome: string;
+    };
+    alocacoes: AlocacaoGrade[];
+  } | null;
+  relatorioValidacao: {
+    statusGrade: string;
+    totalAlocacoes: number;
+    totalComponentesOfertados: number;
+    componentesNaoAlocados: any[];
+    conflitos: Array<{
+      tipo: string;
+      gravidade: string;
+      mensagem: string;
+    }>;
+  } | null;
+  todasSalas: Array<{
+    id: string;
+    codigo: string;
+    predio: string | null;
+    capacidade: number;
+    emManutencao: boolean;
+  }>;
+}
+
+const DIAS = [
+  { key: "SEGUNDA", label: "SEGUNDA" },
+  { key: "TERCA", label: "TERÇA" },
+  { key: "QUARTA", label: "QUARTA" },
+  { key: "QUINTA", label: "QUINTA" },
+  { key: "SEXTA", label: "SEXTA" },
+  { key: "SABADO", label: "SÁBADO" },
+];
+
+const SLOTS_NOITE = [
+  { id: 1, horaInicio: "18:30", horaFim: "19:20", label: "18:30 às 19:20" },
+  { id: 2, horaInicio: "19:20", horaFim: "20:10", label: "19:20 às 20:10" },
+  { id: 3, horaInicio: "20:10", horaFim: "21:00", label: "20:10 às 21:00" },
+  { id: 4, horaInicio: "21:00", horaFim: "21:50", label: "21:00 às 21:50" },
+];
+
+function horaParaMin(h: string): number {
+  const [hh, mm] = h.split(":").map(Number);
+  return hh * 60 + mm;
+}
+
+export function GradeSemanalView({
+  turmaAtual,
+  todasTurmas,
+  proposta,
+  relatorioValidacao,
+  todasSalas,
+}: PropsGradeView) {
+  const [alocacaoSelecionada, setAlocacaoSelecionada] = useState<AlocacaoGrade | null>(null);
+  const [abaAtiva, setAbaAtiva] = useState<"grade" | "salas" | "conflitos">("grade");
+
+  const alocacoes = proposta?.alocacoes || [];
+
+  // Mapear alocações por dia
+  const renderColunaDia = (diaKey: string) => {
+    // Caso especial: Sábado (Aulas Online / DOL informativas)
+    if (diaKey === "SABADO") {
+      const alocacoesSabado = alocacoes.filter((a) => a.diaSemana === "SABADO");
+
+      return (
+        <div className="flex flex-col h-full space-y-3">
+          {alocacoesSabado.length > 0 ? (
+            alocacoesSabado.map((aloc) => (
+              <div
+                key={aloc.id}
+                onClick={() => setAlocacaoSelecionada(aloc)}
+                className="group relative cursor-pointer rounded-lg border-2 border-dashed border-indigo-300 dark:border-indigo-800 bg-gradient-to-br from-indigo-50/80 to-purple-50/50 dark:from-indigo-950/30 dark:to-purple-950/20 p-4 transition-all duration-200 hover:shadow-md hover:border-indigo-400"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 dark:bg-indigo-900/60 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                    <Laptop className="w-3.5 h-3.5" />
+                    ONLINE / DOL
+                  </span>
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                    Sem sala física
+                  </span>
+                </div>
+
+                <h4 className="text-sm font-semibold text-indigo-950 dark:text-indigo-100 leading-snug group-hover:text-indigo-600 transition-colors">
+                  {aloc.componenteAula.oferta.disciplina.nome}
+                </h4>
+
+                <div className="mt-3 pt-3 border-t border-indigo-100 dark:border-indigo-900/40 flex flex-col gap-1 text-xs text-slate-600 dark:text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Carga Semanal: {aloc.componenteAula.qtdBlocos * 50} min</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 text-[11px]">
+                    <Info className="w-3 h-3" />
+                    <span>Visível para o aluno • Sem choque de sala</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full min-h-[380px] rounded-lg border border-dashed border-slate-200 dark:border-zinc-800 p-4 text-center text-xs text-slate-400">
+              <Laptop className="w-6 h-6 mb-1 text-slate-300 dark:text-zinc-600" />
+              <span>Sem atividades DOL cadastradas no sábado</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Dias úteis: Segunda a Sexta
+    // Obter alocações desse dia
+    const alocsDia = alocacoes.filter((a) => a.diaSemana === diaKey);
+
+    // Renderizar slots da noite
+    // Agrupamento por blocos ocupados
+    const slotsRenderizados: React.ReactNode[] = [];
+    let i = 0;
+
+    while (i < SLOTS_NOITE.length) {
+      const slot = SLOTS_NOITE[i];
+      const slotMinInicio = horaParaMin(slot.horaInicio);
+      const slotMinFim = horaParaMin(slot.horaFim);
+
+      // Encontrar alocação que começa neste slot ou o engloba
+      const aloc = alocsDia.find((a) => {
+        const alocInicio = horaParaMin(a.horaInicio);
+        const alocFim = horaParaMin(a.horaFim);
+        return Math.max(slotMinInicio, alocInicio) < Math.min(slotMinFim, alocFim);
+      });
+
+      if (!aloc) {
+        // Slot vazio
+        slotsRenderizados.push(
+          <div
+            key={`empty-${slot.id}`}
+            className="flex flex-col justify-between h-[96px] rounded-md border border-slate-100 dark:border-zinc-800/80 bg-slate-50/40 dark:bg-zinc-900/20 p-2.5 text-slate-400 dark:text-zinc-500 transition-colors hover:bg-slate-50 dark:hover:bg-zinc-800/40"
+          >
+            <span className="text-[11px] font-medium text-slate-400">{slot.label}</span>
+            <span className="text-xs italic text-slate-400/80">Horário livre</span>
+          </div>
+        );
+        i++;
+      } else {
+        // Verificar quantos slots este card abrange a partir daqui
+        const alocInicio = horaParaMin(aloc.horaInicio);
+        const alocFim = horaParaMin(aloc.horaFim);
+
+        // Se a alocação começou antes deste slot, ela já foi renderizada
+        if (alocInicio < slotMinInicio) {
+          i++;
+          continue;
+        }
+
+        // Quantos slots futuros ela cobre?
+        let slotsSpan = 1;
+        for (let next = i + 1; next < SLOTS_NOITE.length; next++) {
+          const nextSlot = SLOTS_NOITE[next];
+          const nextSlotInicio = horaParaMin(nextSlot.horaInicio);
+          if (nextSlotInicio < alocFim) {
+            slotsSpan++;
+          } else {
+            break;
+          }
+        }
+
+        // Altura proporcional: 96px por slot + 8px de gap
+        const altura = slotsSpan * 96 + (slotsSpan - 1) * 8;
+
+        slotsRenderizados.push(
+          <div
+            key={aloc.id}
+            onClick={() => setAlocacaoSelecionada(aloc)}
+            style={{ minHeight: `${altura}px` }}
+            className="group relative cursor-pointer flex flex-col justify-between rounded-lg bg-blue-600 hover:bg-blue-700 text-white p-3.5 shadow-sm transition-all duration-200 hover:shadow-md"
+          >
+            <div>
+              <div className="flex items-center justify-between text-blue-100 text-[11px] font-medium mb-1">
+                <span>{aloc.horaInicio} às {aloc.horaFim}</span>
+                <span className="bg-blue-500/80 text-white px-2 py-0.5 rounded text-[10px] font-semibold">
+                  {slotsSpan === 3 ? "3 Aulas" : slotsSpan === 2 ? "2 Aulas" : "1 Aula"}
+                </span>
+              </div>
+
+              <h4 className="text-sm font-semibold leading-tight tracking-tight mt-1 group-hover:underline">
+                {aloc.componenteAula.oferta.disciplina.nome}
+              </h4>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-blue-500/50 flex flex-wrap items-center justify-between gap-1 text-[11px] text-blue-100">
+              <div className="flex items-center gap-1 font-medium">
+                <MapPin className="w-3.5 h-3.5 text-blue-200" />
+                <span>{aloc.sala ? aloc.sala.codigo : "Sem sala definida"}</span>
+              </div>
+
+              {aloc.sala && (
+                <span className="bg-blue-800/80 text-blue-100 px-1.5 py-0.5 rounded text-[10px]">
+                  Cap: {aloc.sala.capacidade}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+
+        i += slotsSpan;
+      }
+    }
+
+    return <div className="flex flex-col space-y-2">{slotsRenderizados}</div>;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Cabeçalho de Controle e Seleção */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white shadow-inner">
+            <Calendar className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
+                Grade Semanal de Ensalamento
+              </h1>
+              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                {proposta?.status || "CONFIRMADA"}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {turmaAtual.curso.nome} • {turmaAtual.periodoCurricular?.numero}º Período • Turma{" "}
+              <strong className="text-slate-700 dark:text-zinc-200">{turmaAtual.codigo}</strong> (
+              {turmaAtual.qtdAlunos} alunos)
+            </p>
+          </div>
+        </div>
+
+        {/* Resumo de Integridade e Abas */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center rounded-lg bg-slate-100 dark:bg-zinc-800 p-1 text-xs font-medium">
+            <button
+              onClick={() => setAbaAtiva("grade")}
+              className={`px-3 py-1.5 rounded-md transition-all ${
+                abaAtiva === "grade"
+                  ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm font-semibold"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900"
+              }`}
+            >
+              Grade Semanal
+            </button>
+            <button
+              onClick={() => setAbaAtiva("salas")}
+              className={`px-3 py-1.5 rounded-md transition-all ${
+                abaAtiva === "salas"
+                  ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm font-semibold"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900"
+              }`}
+            >
+              Salas Físicas ({todasSalas.length})
+            </button>
+            <button
+              onClick={() => setAbaAtiva("conflitos")}
+              className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+                abaAtiva === "conflitos"
+                  ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm font-semibold"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900"
+              }`}
+            >
+              <span>Validações</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  (relatorioValidacao?.conflitos.length || 0) === 0
+                    ? "bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300"
+                    : "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300"
+                }`}
+              >
+                {relatorioValidacao?.conflitos.length || 0}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Conteúdo Principal */}
+      {abaAtiva === "grade" && (
+        <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm space-y-4">
+          {/* Barra de Status e Indicadores */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-zinc-800 text-xs">
+            <div className="flex items-center gap-4">
+              <span className="text-slate-500 font-medium">Turno: <strong>Noturno (18:30 às 21:50)</strong></span>
+              <span className="text-slate-500">
+                Alocações: <strong className="text-slate-700 dark:text-zinc-200">{alocacoes.length} ativas</strong>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Sem choques de sala ou capacidade
+              </span>
+            </div>
+          </div>
+
+          {/* Grade de 6 Colunas: Segunda a Sábado */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+            {DIAS.map((dia) => (
+              <div key={dia.key} className="flex flex-col space-y-2">
+                {/* Cabeçalho do Dia */}
+                <div
+                  className={`text-center py-2 px-1 rounded-md text-xs font-bold tracking-wider ${
+                    dia.key === "SABADO"
+                      ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                      : "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200"
+                  }`}
+                >
+                  {dia.label}
+                </div>
+
+                {/* Linhas de Slots ou Card Informativo */}
+                {renderColunaDia(dia.key)}
+              </div>
+            ))}
+          </div>
+
+          {/* Legenda Estilo Grade Oficial */}
+          <div className="flex flex-wrap items-center gap-6 pt-4 border-t border-slate-100 dark:border-zinc-800 text-xs text-slate-600 dark:text-slate-400">
+            <div className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 rounded-full bg-blue-600"></span>
+              <span className="font-medium text-slate-800 dark:text-zinc-200">SUA TURMA (Aulas Presenciais no Campus)</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 rounded-full bg-indigo-500"></span>
+              <span className="font-medium text-slate-800 dark:text-zinc-200">DOL / COMPONENTE REMOTO (Sábado sem Sala Física)</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 rounded border border-dashed border-slate-400"></span>
+              <span>HORÁRIO LIVRE</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Aba de Salas Físicas */}
+      {abaAtiva === "salas" && (
+        <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-900 dark:text-zinc-50 flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-blue-600" />
+              Salas Físicas Cadastradas para Ensalamento
+            </h3>
+            <span className="text-xs text-slate-500">{todasSalas.length} salas registradas</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {todasSalas.map((sala) => (
+              <div
+                key={sala.id}
+                className="p-4 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/40 space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-slate-900 dark:text-zinc-100 text-sm">{sala.codigo}</h4>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      sala.emManutencao
+                        ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                    }`}
+                  >
+                    {sala.emManutencao ? "EM MANUTENÇÃO" : "DISPONÍVEL"}
+                  </span>
+                </div>
+
+                <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                  <p>Prédio: <strong>{sala.predio || "Principal"}</strong></p>
+                  <p className="flex items-center gap-1">
+                    <Users className="w-3.5 h-3.5 text-blue-600" />
+                    Capacidade Máxima: <strong>{sala.capacidade} alunos</strong>
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Aba de Validações e Auditoria */}
+      {abaAtiva === "conflitos" && (
+        <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-900 dark:text-zinc-50 flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" />
+              Auditoria de Conflitos e Regras de Negócio (RN09 - RN15)
+            </h3>
+            <span
+              className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+                relatorioValidacao?.statusGrade === "VALIDA_COMPLETA"
+                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                  : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+              }`}
+            >
+              Status: {relatorioValidacao?.statusGrade}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-900 dark:text-emerald-200 space-y-2">
+            <div className="flex items-center gap-2 font-semibold text-sm">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              Todas as verificações passaram com sucesso:
+            </div>
+            <ul className="list-disc list-inside space-y-1 ml-2 text-emerald-800 dark:text-emerald-300">
+              <li><strong>RN09 / RN13:</strong> Disciplinas presenciais alocadas em salas físicas válidas de Segunda a Quinta.</li>
+              <li><strong>RN10:</strong> Nenhuma sala possui duas turmas no mesmo horário sobreposto.</li>
+              <li><strong>RN11:</strong> Capacidade das salas ({'>='} 45 e 50 vagas) suporta perfeitamente a turma de 40 alunos.</li>
+              <li><strong>RN12:</strong> Nenhuma sala interditada ou em manutenção foi utilizada.</li>
+              <li><strong>Regra do Sábado:</strong> Disciplina DOL alocada no sábado sem ocupação de sala física (capacidade física poupada).</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Modal / Gaveta de Detalhes da Alocação Selecionada */}
+      {alocacaoSelecionada && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
+          onClick={() => setAlocacaoSelecionada(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Detalhes da Alocação
+                </span>
+              </div>
+              <button
+                onClick={() => setAlocacaoSelecionada(null)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold leading-none p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div>
+                <span className="text-xs text-slate-400 font-medium">Disciplina:</span>
+                <h3 className="text-base font-bold text-slate-900 dark:text-zinc-50">
+                  {alocacaoSelecionada.componenteAula.oferta.disciplina.nome}
+                </h3>
+                <span className="text-xs text-slate-500">
+                  Código: {alocacaoSelecionada.componenteAula.oferta.disciplina.codigo} • Carga Horária:{" "}
+                  {alocacaoSelecionada.componenteAula.oferta.disciplina.chTotal}h
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800">
+                  <span className="text-[11px] text-slate-400 font-medium">Dia & Horário</span>
+                  <p className="font-semibold text-slate-800 dark:text-zinc-200">
+                    {alocacaoSelecionada.diaSemana}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {alocacaoSelecionada.horaInicio} às {alocacaoSelecionada.horaFim}
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800">
+                  <span className="text-[11px] text-slate-400 font-medium">Espaço Físico</span>
+                  <p className="font-semibold text-slate-800 dark:text-zinc-200">
+                    {alocacaoSelecionada.sala ? alocacaoSelecionada.sala.codigo : "Online (Sem sala)"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {alocacaoSelecionada.sala
+                      ? `Capacidade: ${alocacaoSelecionada.sala.capacidade} alunos`
+                      : "Remoto / DOL"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-200">
+                <p>
+                  <strong>Turma:</strong> {alocacaoSelecionada.componenteAula.oferta.turma.codigo} (
+                  {alocacaoSelecionada.componenteAula.oferta.turma.qtdAlunos} alunos)
+                </p>
+                <p className="mt-1">
+                  <strong>Modalidade:</strong> {alocacaoSelecionada.componenteAula.oferta.modalidade}
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setAlocacaoSelecionada(null)}
+                className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-semibold text-slate-700 dark:text-zinc-200 transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

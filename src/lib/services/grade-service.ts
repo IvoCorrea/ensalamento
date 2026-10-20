@@ -123,3 +123,80 @@ export async function validarPropostaDoBanco(propostaId: string): Promise<Relato
     statusGrade,
   };
 }
+
+export async function getDadosGradeTurma(turmaCodigo?: string) {
+  // Buscar a turma selecionada ou a primeira turma
+  const turma = turmaCodigo
+    ? await prisma.turma.findFirst({
+        where: { codigo: turmaCodigo },
+        include: {
+          curso: true,
+          periodoCurricular: true,
+        },
+      })
+    : await prisma.turma.findFirst({
+        include: {
+          curso: true,
+          periodoCurricular: true,
+        },
+      });
+
+  if (!turma) {
+    return null;
+  }
+
+  // Buscar todas as turmas para o seletor
+  const todasTurmas = await prisma.turma.findMany({
+    include: {
+      curso: true,
+      periodoCurricular: true,
+    },
+    orderBy: { codigo: "asc" },
+  });
+
+  // Buscar a proposta de grade mais recente
+  const proposta = await prisma.propostaGrade.findFirst({
+    include: {
+      periodoLetivo: true,
+      alocacoes: {
+        where: {
+          componenteAula: {
+            oferta: {
+              turmaId: turma.id,
+            },
+          },
+        },
+        include: {
+          sala: true,
+          componenteAula: {
+            include: {
+              oferta: {
+                include: {
+                  disciplina: true,
+                  turma: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Executar validação geral
+  const relatorioValidacao = proposta ? await validarPropostaDoBanco(proposta.id) : null;
+
+  // Buscar todas as salas cadastradas
+  const todasSalas = await prisma.sala.findMany({
+    orderBy: [{ predio: "asc" }, { codigo: "asc" }],
+  });
+
+  return {
+    turmaAtual: turma,
+    todasTurmas,
+    proposta,
+    relatorioValidacao,
+    todasSalas,
+  };
+}
