@@ -1,15 +1,191 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum Turno {
+  MANHA
+  NOITE
+}
+
+enum ModalidadeOferta {
+  PRESENCIAL
+  HIBRIDA
+  DOL
+  EAD
+  UBIQUA
+  NOTAVEL_MESTRE
+}
+
+enum TipoComponente {
+  PRESENCIAL
+  REMOTO
+}
+
+enum DiaSemana {
+  SEGUNDA
+  TERCA
+  QUARTA
+  QUINTA
+  SEXTA
+  SABADO
+}
+
+enum StatusProposta {
+  RASCUNHO
+  EM_ANALISE
+  CONFIRMADA
+}
+
+model Curso {
+  id        String             @id @default(uuid())
+  codigo    String             @unique
+  nome      String
+  ativo     Boolean            @default(true)
+  matrizes  MatrizCurricular[]
+  turmas    Turma[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+model MatrizCurricular {
+  id        String              @id @default(uuid())
+  cursoId   String
+  versao    String              // ex: "2024.1"
+  ativo     Boolean             @default(true)
+  curso     Curso               @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  periodos  PeriodoCurricular[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+}
+
+model PeriodoCurricular {
+  id          String             @id @default(uuid())
+  matrizId    String
+  numero      Int                // ex: 1, 2, 3...
+  matriz      MatrizCurricular   @relation(fields: [matrizId], references: [id], onDelete: Cascade)
+  disciplinas DisciplinaMatriz[]
+  turmas      Turma[]
+}
+
+model Disciplina {
+  id           String             @id @default(uuid())
+  codigo       String             @unique
+  nome         String
+  chTotal      Int                // Carga horária total prevista
+  chPresencial Int                @default(0)
+  chRemota     Int                @default(0)
+  matrizes     DisciplinaMatriz[]
+  ofertas      OfertaDisciplina[]
+}
+
+model DisciplinaMatriz {
+  id                  String            @id @default(uuid())
+  periodoCurricularId String
+  disciplinaId        String
+  periodoCurricular   PeriodoCurricular @relation(fields: [periodoCurricularId], references: [id], onDelete: Cascade)
+  disciplina          Disciplina        @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+
+  @@unique([periodoCurricularId, disciplinaId])
+}
+
+model PeriodoLetivo {
+  id        String             @id @default(uuid())
+  codigo    String             @unique // ex: "2026.1"
+  nome      String             // ex: "Primeiro Semestre 2026"
+  ativo     Boolean            @default(true)
+  ofertas   OfertaDisciplina[]
+  propostas PropostaGrade[]
+}
+
+model Turma {
+  id                  String             @id @default(uuid())
+  codigo              String             // ex: "CC-6NA"
+  cursoId             String
+  periodoCurricularId String?
+  turno               Turno
+  qtdAlunos           Int                // Usado na validação de capacidade da sala
+  ativo               Boolean            @default(true)
+  curso               Curso              @relation(fields: [cursoId], references: [id])
+  periodoCurricular   PeriodoCurricular? @relation(fields: [periodoCurricularId], references: [id])
+  ofertas             OfertaDisciplina[]
+}
+
+model OfertaDisciplina {
+  id              String             @id @default(uuid())
+  turmaId         String
+  disciplinaId    String
+  periodoLetivoId String
+  modalidade      ModalidadeOferta   @default(PRESENCIAL)
+  turma           Turma              @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  disciplina      Disciplina         @relation(fields: [disciplinaId], references: [id])
+  periodoLetivo   PeriodoLetivo      @relation(fields: [periodoLetivoId], references: [id])
+  componentes     ComponenteAula[]
+
+  @@unique([turmaId, disciplinaId, periodoLetivoId])
+}
+
+model ComponenteAula {
+  id                 String           @id @default(uuid())
+  ofertaDisciplinaId String
+  tipo               TipoComponente   // PRESENCIAL (ocupa sala física) ou REMOTO (sem sala física)
+  qtdBlocos          Int              // ex: 2 blocos (1h40), 3 blocos (2h30), etc.
+  oferta             OfertaDisciplina @relation(fields: [ofertaDisciplinaId], references: [id], onDelete: Cascade)
+  alocacoes          Alocacao[]
+}
+
+model Sala {
+  id              String                @id @default(uuid())
+  codigo          String                @unique // ex: "Sala 204", "Lab Inf 3"
+  predio          String?               // ex: "Bloco B"
+  andar           Int?                  // ex: 2
+  capacidade      Int                   // Capacidade de alunos
+  emManutencao    Boolean               @default(false)
+  ativo           Boolean               @default(true)
+  disponibilidade DisponibilidadeSala[]
+  alocacoes       Alocacao[]
+}
+
+model DisponibilidadeSala {
+  id         String    @id @default(uuid())
+  salaId     String
+  diaSemana  DiaSemana
+  horaInicio String    // formato "HH:mm" (ex: "18:30")
+  horaFim    String    // formato "HH:mm" (ex: "21:50")
+  disponivel Boolean   @default(true)
+  sala       Sala      @relation(fields: [salaId], references: [id], onDelete: Cascade)
+}
+
+model PropostaGrade {
+  id              String         @id @default(uuid())
+  periodoLetivoId String
+  nome            String         // ex: "Proposta V1 - 2026.1"
+  status          StatusProposta @default(RASCUNHO)
+  observacoes     String?
+  periodoLetivo   PeriodoLetivo  @relation(fields: [periodoLetivoId], references: [id])
+  alocacoes       Alocacao[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Alocacao {
+  id               String         @id @default(uuid())
+  propostaId       String
+  componenteAulaId String
+  salaId           String?        // Obrigatório Seg-Sex presencial; NULL aos sábados ou DOL/remoto
+  diaSemana        DiaSemana
+  horaInicio       String         // "18:30"
+  horaFim          String         // "20:10"
+  proposta         PropostaGrade  @relation(fields: [propostaId], references: [id], onDelete: Cascade)
+  componenteAula   ComponenteAula @relation(fields: [componenteAulaId], references: [id], onDelete: Cascade)
+  sala             Sala?          @relation(fields: [salaId], references: [id])
+
+  @@index([propostaId, diaSemana, horaInicio, horaFim])
 }
