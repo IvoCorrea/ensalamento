@@ -9,7 +9,10 @@
     "lint": "eslint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:seed": "node prisma/seed.js",
+    "db:studio": "prisma studio",
+    "test:conflicts": "npx tsx test-validator.js",
+    "test:grade": "npx tsx test-db-validation.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -33,6 +36,7 @@
     "eslint-config-next": "16.3.8",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }
