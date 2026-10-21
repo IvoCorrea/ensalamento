@@ -10,7 +10,7 @@ export interface JanelaHorario {
 }
 
 // Janelas válidas de aula para o turno da noite
-const JANELAS_NOITE: Record<number, JanelaHorario[]> = {
+export const JANELAS_NOITE: Record<number, JanelaHorario[]> = {
   1: [
     { qtdBlocos: 1, horaInicio: "18:30", horaFim: "19:20" },
     { qtdBlocos: 1, horaInicio: "19:20", horaFim: "20:10" },

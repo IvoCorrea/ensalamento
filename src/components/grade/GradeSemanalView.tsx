@@ -17,8 +17,11 @@ import {
   Check,
   Loader2,
   Sparkles,
+  Edit3,
+  RotateCcw,
 } from "lucide-react";
-import { gerarGradeAutomaticaAction, confirmarGradeAction } from "@/app/actions/grade-actions";
+import { gerarGradeAutomaticaAction, confirmarGradeAction, atualizarAlocacaoAction } from "@/app/actions/grade-actions";
+import { JANELAS_NOITE } from "@/lib/services/solver-service";
 
 export interface AlocacaoGrade {
   id: string;
@@ -149,7 +152,55 @@ export function GradeSemanalView({
   const [mensagemErro, setMensagemErro] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // Estados de Ajuste Manual (Passo 5)
+  const [modoEdicao, setModoEdicao] = useState(false);
+  const [editSalaId, setEditSalaId] = useState<string | null>(null);
+  const [editDiaSemana, setEditDiaSemana] = useState<string>("SEGUNDA");
+  const [editJanelaIdx, setEditJanelaIdx] = useState<number>(0);
+  const [erroEdicao, setErroEdicao] = useState<string | null>(null);
+
   const alocacoes = proposta?.alocacoes || [];
+
+  const abrirDetalhesAlocacao = (aloc: AlocacaoGrade) => {
+    setAlocacaoSelecionada(aloc);
+    setModoEdicao(false);
+    setErroEdicao(null);
+    setEditSalaId(aloc.salaId);
+    setEditDiaSemana(aloc.diaSemana);
+
+    // Identificar a janela de horário atual
+    const janelas = JANELAS_NOITE[aloc.componenteAula.qtdBlocos] || JANELAS_NOITE[2];
+    const idx = janelas.findIndex(
+      (j) => j.horaInicio === aloc.horaInicio && j.horaFim === aloc.horaFim
+    );
+    setEditJanelaIdx(idx >= 0 ? idx : 0);
+  };
+
+  const handleSalvarEdicao = () => {
+    if (!alocacaoSelecionada) return;
+
+    const janelas = JANELAS_NOITE[alocacaoSelecionada.componenteAula.qtdBlocos] || JANELAS_NOITE[2];
+    const janela = janelas[editJanelaIdx] || janelas[0];
+
+    setErroEdicao(null);
+    startTransition(async () => {
+      const res = await atualizarAlocacaoAction({
+        alocacaoId: alocacaoSelecionada.id,
+        diaSemana: editDiaSemana as any,
+        horaInicio: janela.horaInicio,
+        horaFim: janela.horaFim,
+        salaId: editSalaId,
+      });
+
+      if (res.success) {
+        setMensagemSucesso("Alocação ajustada com sucesso! Sem choques.");
+        setAlocacaoSelecionada(null);
+        setModoEdicao(false);
+      } else {
+        setErroEdicao(res.error || "Ajuste rejeitado por violar regras de alocação.");
+      }
+    });
+  };
 
   const handleGerarAutomaticamente = () => {
     if (!proposta?.periodoLetivoId) return;
@@ -200,7 +251,7 @@ export function GradeSemanalView({
             alocacoesSabado.map((aloc) => (
               <div
                 key={aloc.id}
-                onClick={() => setAlocacaoSelecionada(aloc)}
+                onClick={() => abrirDetalhesAlocacao(aloc)}
                 className="group relative cursor-pointer rounded-lg border-2 border-dashed border-indigo-300 dark:border-indigo-800 bg-gradient-to-br from-indigo-50/80 to-purple-50/50 dark:from-indigo-950/30 dark:to-purple-950/20 p-4 transition-all duration-200 hover:shadow-md hover:border-indigo-400"
               >
                 <div className="flex items-center justify-between mb-2">
@@ -292,7 +343,7 @@ export function GradeSemanalView({
         slotsRenderizados.push(
           <div
             key={aloc.id}
-            onClick={() => setAlocacaoSelecionada(aloc)}
+            onClick={() => abrirDetalhesAlocacao(aloc)}
             style={{ minHeight: `${altura}px` }}
             className="group relative cursor-pointer flex flex-col justify-between rounded-lg bg-blue-600 hover:bg-blue-700 text-white p-3.5 shadow-sm transition-all duration-200 hover:shadow-md"
           >
@@ -604,86 +655,223 @@ export function GradeSemanalView({
         </div>
       )}
 
-      {/* Modal de Detalhes da Alocação */}
+      {/* Modal de Detalhes e Ajuste Manual da Alocação (Passo 5) */}
       {alocacaoSelecionada && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
-          onClick={() => setAlocacaoSelecionada(null)}
+          onClick={() => !isPending && setAlocacaoSelecionada(null)}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-xl space-y-4"
+            className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-2xl space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Detalhes da Alocação
+                  {modoEdicao ? "Ajuste Manual de Alocação" : "Detalhes da Alocação"}
                 </span>
               </div>
               <button
                 onClick={() => setAlocacaoSelecionada(null)}
-                className="text-slate-400 hover:text-slate-600 text-lg font-bold leading-none p-1"
+                disabled={isPending}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold leading-none p-1 disabled:opacity-50"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-3 text-sm">
-              <div>
-                <span className="text-xs text-slate-400 font-medium">Disciplina:</span>
-                <h3 className="text-base font-bold text-slate-900 dark:text-zinc-50">
-                  {alocacaoSelecionada.componenteAula.oferta.disciplina.nome}
-                </h3>
-                <span className="text-xs text-slate-500">
-                  Código: {alocacaoSelecionada.componenteAula.oferta.disciplina.codigo} • Carga Horária:{" "}
-                  {alocacaoSelecionada.componenteAula.oferta.disciplina.chTotal}h
-                </span>
+            {/* Mensagem de Erro de Validação Pré-Voo (RN14 / RN15) */}
+            {erroEdicao && (
+              <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-300 dark:border-red-800 text-xs text-red-900 dark:text-red-200 space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-red-700 dark:text-red-300">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>Ajuste Bloqueado pelo Validador de Conflitos:</span>
+                </div>
+                <p className="ml-5 text-[11px] leading-relaxed text-red-800 dark:text-red-200">
+                  {erroEdicao}
+                </p>
               </div>
+            )}
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800">
-                  <span className="text-[11px] text-slate-400 font-medium">Dia & Horário</span>
-                  <p className="font-semibold text-slate-800 dark:text-zinc-200">
-                    {alocacaoSelecionada.diaSemana}
+            {!modoEdicao ? (
+              // MODO VISUALIZAÇÃO
+              <div className="space-y-3 text-sm">
+                <div>
+                  <span className="text-xs text-slate-400 font-medium">Disciplina:</span>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-zinc-50">
+                    {alocacaoSelecionada.componenteAula.oferta.disciplina.nome}
+                  </h3>
+                  <span className="text-xs text-slate-500">
+                    Código: {alocacaoSelecionada.componenteAula.oferta.disciplina.codigo} • Carga Horária:{" "}
+                    {alocacaoSelecionada.componenteAula.oferta.disciplina.chTotal}h •{" "}
+                    {alocacaoSelecionada.componenteAula.qtdBlocos} blocos de 50min
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800">
+                    <span className="text-[11px] text-slate-400 font-medium">Dia & Horário</span>
+                    <p className="font-semibold text-slate-800 dark:text-zinc-200">
+                      {alocacaoSelecionada.diaSemana}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {alocacaoSelecionada.horaInicio} às {alocacaoSelecionada.horaFim}
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800">
+                    <span className="text-[11px] text-slate-400 font-medium">Espaço Físico</span>
+                    <p className="font-semibold text-slate-800 dark:text-zinc-200">
+                      {alocacaoSelecionada.sala ? alocacaoSelecionada.sala.codigo : "Online (Sem sala física)"}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {alocacaoSelecionada.sala
+                        ? `Capacidade: ${alocacaoSelecionada.sala.capacidade} alunos`
+                        : "Remoto / DOL"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-200">
+                  <p>
+                    <strong>Turma:</strong> {alocacaoSelecionada.componenteAula.oferta.turma.codigo} (
+                    {alocacaoSelecionada.componenteAula.oferta.turma.qtdAlunos} alunos matriculados)
                   </p>
-                  <p className="text-xs text-slate-500">
-                    {alocacaoSelecionada.horaInicio} às {alocacaoSelecionada.horaFim}
+                  <p className="mt-1">
+                    <strong>Modalidade de Ensino:</strong> {alocacaoSelecionada.componenteAula.oferta.modalidade}
                   </p>
                 </div>
 
-                <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800">
-                  <span className="text-[11px] text-slate-400 font-medium">Espaço Físico</span>
-                  <p className="font-semibold text-slate-800 dark:text-zinc-200">
-                    {alocacaoSelecionada.sala ? alocacaoSelecionada.sala.codigo : "Online (Sem sala)"}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {alocacaoSelecionada.sala
-                      ? `Capacidade: ${alocacaoSelecionada.sala.capacidade} alunos`
-                      : "Remoto / DOL"}
-                  </p>
+                <div className="pt-2 flex items-center justify-between border-t border-slate-100 dark:border-zinc-800">
+                  <button
+                    onClick={() => setAlocacaoSelecionada(null)}
+                    className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-semibold text-slate-700 dark:text-zinc-200 transition-colors"
+                  >
+                    Fechar
+                  </button>
+
+                  {alocacaoSelecionada.componenteAula.tipo === "PRESENCIAL" && (
+                    <button
+                      onClick={() => setModoEdicao(true)}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Ajustar Sala / Horário</span>
+                    </button>
+                  )}
                 </div>
               </div>
+            ) : (
+              // MODO EDIÇÃO MANUAL (Passo 5)
+              <div className="space-y-4 text-xs">
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-zinc-100 text-sm">
+                    {alocacaoSelecionada.componenteAula.oferta.disciplina.nome}
+                  </h4>
+                  <p className="text-slate-500">
+                    Turma: {alocacaoSelecionada.componenteAula.oferta.turma.codigo} (
+                    {alocacaoSelecionada.componenteAula.oferta.turma.qtdAlunos} alunos)
+                  </p>
+                </div>
 
-              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-200">
-                <p>
-                  <strong>Turma:</strong> {alocacaoSelecionada.componenteAula.oferta.turma.codigo} (
-                  {alocacaoSelecionada.componenteAula.oferta.turma.qtdAlunos} alunos)
-                </p>
-                <p className="mt-1">
-                  <strong>Modalidade:</strong> {alocacaoSelecionada.componenteAula.oferta.modalidade}
-                </p>
+                {/* Seleção de Sala */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-zinc-300">
+                    Sala Física Destino:
+                  </label>
+                  <select
+                    value={editSalaId || ""}
+                    onChange={(e) => setEditSalaId(e.target.value || null)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {todasSalas.map((s) => {
+                      const insuficiente = s.capacidade < alocacaoSelecionada.componenteAula.oferta.turma.qtdAlunos;
+                      return (
+                        <option key={s.id} value={s.id}>
+                          {s.codigo} ({s.capacidade} lugares) {insuficiente ? "⚠️ [CAPACIDADE INSUFICIENTE]" : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <span className="text-[11px] text-slate-500">
+                    O sistema impedirá a alocação se a capacidade for menor que{" "}
+                    {alocacaoSelecionada.componenteAula.oferta.turma.qtdAlunos} alunos.
+                  </span>
+                </div>
+
+                {/* Seleção de Dia da Semana */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-zinc-300">
+                    Dia da Semana:
+                  </label>
+                  <select
+                    value={editDiaSemana}
+                    onChange={(e) => setEditDiaSemana(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="SEGUNDA">Segunda-feira</option>
+                    <option value="TERCA">Terça-feira</option>
+                    <option value="QUARTA">Quarta-feira</option>
+                    <option value="QUINTA">Quinta-feira</option>
+                    <option value="SEXTA">Sexta-feira</option>
+                  </select>
+                </div>
+
+                {/* Seleção de Janela de Horário */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-zinc-300">
+                    Horário da Aula ({alocacaoSelecionada.componenteAula.qtdBlocos} blocos):
+                  </label>
+                  <select
+                    value={editJanelaIdx}
+                    onChange={(e) => setEditJanelaIdx(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {(JANELAS_NOITE[alocacaoSelecionada.componenteAula.qtdBlocos] || JANELAS_NOITE[2]).map(
+                      (j, idx) => (
+                        <option key={idx} value={idx}>
+                          {j.horaInicio} às {j.horaFim}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
+
+                <div className="pt-2 flex items-center justify-between border-t border-slate-100 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModoEdicao(false);
+                      setErroEdicao(null);
+                    }}
+                    disabled={isPending}
+                    className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 font-semibold text-slate-700 dark:text-zinc-200 transition-colors disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSalvarEdicao}
+                    disabled={isPending}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm transition-all disabled:opacity-50"
+                  >
+                    {isPending ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Validando Regras...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Salvar Alteração</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <button
-                onClick={() => setAlocacaoSelecionada(null)}
-                className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-semibold text-slate-700 dark:text-zinc-200 transition-colors"
-              >
-                Fechar
-              </button>
-            </div>
+            )}
           </div>
         </div>
       )}

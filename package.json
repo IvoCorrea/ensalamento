@@ -13,6 +13,7 @@
     "db:studio": "prisma studio",
     "test:conflicts": "npx tsx test-validator.js",
     "test:grade": "npx tsx test-db-validation.ts",
+    "test:manual": "npx tsx test-manual-adjustment.ts",
     "test:solver": "npx tsx test-solver.ts"
   },
   "dependencies": {
