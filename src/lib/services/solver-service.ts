@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { DiaSemana, TipoComponente } from "@prisma/client";
+import { DiaSemana, TipoComponente, Turno } from "@prisma/client";
 import { haSobreposicaoHorario } from "@/lib/conflicts";
 import { validarPropostaDoBanco, RelatorioValidacaoProposta } from "@/lib/services/grade-service";
 
@@ -8,6 +8,48 @@ export interface JanelaHorario {
   horaInicio: string;
   horaFim: string;
 }
+
+export interface SlotGrade {
+  id: number;
+  horaInicio: string;
+  horaFim: string;
+  label: string;
+}
+
+export const SLOTS_MANHA: SlotGrade[] = [
+  { id: 1, horaInicio: "07:30", horaFim: "08:20", label: "07:30 às 08:20" },
+  { id: 2, horaInicio: "08:20", horaFim: "09:10", label: "08:20 às 09:10" },
+  { id: 3, horaInicio: "09:10", horaFim: "10:00", label: "09:10 às 10:00" },
+  { id: 4, horaInicio: "10:00", horaFim: "10:50", label: "10:00 às 10:50" },
+];
+
+export const SLOTS_NOITE: SlotGrade[] = [
+  { id: 1, horaInicio: "18:30", horaFim: "19:20", label: "18:30 às 19:20" },
+  { id: 2, horaInicio: "19:20", horaFim: "20:10", label: "19:20 às 20:10" },
+  { id: 3, horaInicio: "20:10", horaFim: "21:00", label: "20:10 às 21:00" },
+  { id: 4, horaInicio: "21:00", horaFim: "21:50", label: "21:00 às 21:50" },
+];
+
+// Janelas válidas de aula para o turno da manhã
+export const JANELAS_MANHA: Record<number, JanelaHorario[]> = {
+  1: [
+    { qtdBlocos: 1, horaInicio: "07:30", horaFim: "08:20" },
+    { qtdBlocos: 1, horaInicio: "08:20", horaFim: "09:10" },
+    { qtdBlocos: 1, horaInicio: "09:10", horaFim: "10:00" },
+    { qtdBlocos: 1, horaInicio: "10:00", horaFim: "10:50" },
+  ],
+  2: [
+    { qtdBlocos: 2, horaInicio: "07:30", horaFim: "09:10" }, // 1º e 2º blocos
+    { qtdBlocos: 2, horaInicio: "09:10", horaFim: "10:50" }, // 3º e 4º blocos
+  ],
+  3: [
+    { qtdBlocos: 3, horaInicio: "07:30", horaFim: "10:00" }, // 1º, 2º e 3º blocos
+    { qtdBlocos: 3, horaInicio: "08:20", horaFim: "10:50" }, // 2º, 3º e 4º blocos
+  ],
+  4: [
+    { qtdBlocos: 4, horaInicio: "07:30", horaFim: "10:50" },
+  ],
+};
 
 // Janelas válidas de aula para o turno da noite
 export const JANELAS_NOITE: Record<number, JanelaHorario[]> = {
@@ -29,6 +71,11 @@ export const JANELAS_NOITE: Record<number, JanelaHorario[]> = {
     { qtdBlocos: 4, horaInicio: "18:30", horaFim: "21:50" },
   ],
 };
+
+export function getJanelasPorTurno(turno: Turno, qtdBlocos: number): JanelaHorario[] {
+  const mapa = turno === Turno.MANHA ? JANELAS_MANHA : JANELAS_NOITE;
+  return mapa[qtdBlocos] || mapa[2];
+}
 
 const DIAS_PRESENCIAIS: DiaSemana[] = [
   DiaSemana.SEGUNDA,
@@ -64,10 +111,11 @@ interface AlocacaoEmMemoria {
 
 /**
  * Algoritmo Heurístico de Ensalamento baseado nos princípios do FET:
+ * - Suporta Turnos da Manhã e da Noite (RN04)
  * - Most Constrained First (atividades com mais blocos e turmas maiores primeiro)
  * - Best-Fit Room Allocation (minimiza o desperdício de assentos)
- * - Restrição estrita de Sábado (apenas online/DOL, sem alocação física)
- * - Restrições obrigatórias de choque de sala, choque de turma e manutenção
+ * - Restrição estrita de Sábado (apenas online/DOL/remoto, sem alocação física)
+ * - Restrições obrigatórias de choque de sala, choque de turma, manutenção e intervalos de indisponibilidade (RN10-RN12)
  */
 export async function gerarPropostaGradeAutomatica(
   periodoLetivoId: string,
@@ -102,11 +150,14 @@ export async function gerarPropostaGradeAutomatica(
     throw new Error("Não há componentes de aula cadastrados para este período letivo.");
   }
 
-  // 2. Carregar todas as salas ativas e não em manutenção
+  // 2. Carregar todas as salas ativas e não em manutenção, junto com regras de disponibilidade
   const salasDisponiveis = await prisma.sala.findMany({
     where: {
       ativo: true,
       emManutencao: false,
+    },
+    include: {
+      disponibilidade: true,
     },
     orderBy: { capacidade: "asc" },
   });
@@ -114,7 +165,7 @@ export async function gerarPropostaGradeAutomatica(
   const alocacoesGeradas: AlocacaoEmMemoria[] = [];
   const atividadesNaoAlocadas: ResultadoGeracaoGrade["atividadesNaoAlocadas"] = [];
 
-  // 3. Separar componentes remotos (DOL / EAD) dos presenciais
+  // 3. Separar componentes remotos (DOL / EAD / parte remota de Híbrida) dos presenciais
   const componentesRemotos = todosComponentes.filter((c) => c.tipo === TipoComponente.REMOTO);
   const componentesPresenciais = todosComponentes.filter((c) => c.tipo === TipoComponente.PRESENCIAL);
 
@@ -125,14 +176,12 @@ export async function gerarPropostaGradeAutomatica(
       salaId: null, // SEM SALA FÍSICA NO CAMPUS!
       diaSemana: DiaSemana.SABADO,
       horaInicio: "08:00",
-      horaFim: "11:40",
+      horaFim: comp.qtdBlocos >= 3 ? "10:30" : "09:40",
       turmaId: comp.oferta.turma.id,
     });
   }
 
   // 4. Ordenação Heurística dos Presenciais (Most Constrained First)
-  // - Maior quantidade de blocos primeiro (ex: 3 blocos antes de 2 blocos)
-  // - Maior quantidade de alunos primeiro (precisam de salas com maior capacidade)
   componentesPresenciais.sort((a, b) => {
     if (b.qtdBlocos !== a.qtdBlocos) {
       return b.qtdBlocos - a.qtdBlocos;
@@ -144,17 +193,18 @@ export async function gerarPropostaGradeAutomatica(
   for (const comp of componentesPresenciais) {
     const turma = comp.oferta.turma;
     const qtdBlocos = comp.qtdBlocos;
-    const janelasPossiveis = JANELAS_NOITE[qtdBlocos] || JANELAS_NOITE[2];
+    const janelasPossiveis = getJanelasPorTurno(turma.turno, qtdBlocos);
 
     // Salas capazes de acomodar a turma (capacidade >= alunos)
     const salasCompativeis = salasDisponiveis.filter((s) => s.capacidade >= turma.qtdAlunos);
 
     if (salasCompativeis.length === 0) {
+      const maiorCap = salasDisponiveis.length > 0 ? Math.max(...salasDisponiveis.map((s) => s.capacidade)) : 0;
       atividadesNaoAlocadas.push({
         componenteId: comp.id,
         disciplinaNome: comp.oferta.disciplina.nome,
         turmaNome: turma.codigo,
-        motivo: `Nenhuma sala disponível possui capacidade suficiente para os ${turma.qtdAlunos} alunos da turma.`,
+        motivo: `Capacidade insuficiente: a turma possui ${turma.qtdAlunos} alunos, mas a maior sala disponível comporta ${maiorCap} alunos (RN11).`,
       });
       continue;
     }
@@ -172,7 +222,6 @@ export async function gerarPropostaGradeAutomatica(
     for (const dia of DIAS_PRESENCIAIS) {
       if (alocadoComSucesso) break;
 
-      // Iterar pelas janelas de horário do bloco
       for (const janela of janelasPossiveis) {
         if (alocadoComSucesso) break;
 
@@ -185,11 +234,20 @@ export async function gerarPropostaGradeAutomatica(
         );
 
         if (turmaOcupada) {
-          continue; // Tenta próxima janela ou dia
+          continue;
         }
 
-        // Tentar encontrar uma sala compatível que esteja livre
+        // Tentar encontrar uma sala compatível que esteja livre e disponível no horário
         for (const sala of salasCompativeis) {
+          // Verificar restrição de disponibilidade da sala (RN12)
+          const restritaNoHorario = sala.disponibilidade.some(
+            (d) =>
+              !d.disponivel &&
+              d.diaSemana === dia &&
+              haSobreposicaoHorario(janela.horaInicio, janela.horaFim, d.horaInicio, d.horaFim)
+          );
+          if (restritaNoHorario) continue;
+
           const salaOcupada = alocacoesGeradas.some(
             (a) =>
               a.salaId === sala.id &&
@@ -198,7 +256,6 @@ export async function gerarPropostaGradeAutomatica(
           );
 
           if (!salaOcupada) {
-            // Sucesso! Combinação válida encontrada
             alocacoesGeradas.push({
               componenteAulaId: comp.id,
               salaId: sala.id,
@@ -219,7 +276,7 @@ export async function gerarPropostaGradeAutomatica(
         componenteId: comp.id,
         disciplinaNome: comp.oferta.disciplina.nome,
         turmaNome: turma.codigo,
-        motivo: "Não foi possível encontrar horário e sala física livres sem sobreposição.",
+        motivo: `Sem combinação de horário e sala livre no turno ${turma.turno} para ${comp.qtdBlocos} blocos consecutivos.`,
       });
     }
   }
@@ -235,14 +292,14 @@ export async function gerarPropostaGradeAutomatica(
   // 7. Persistir a Proposta no Banco de Dados Supabase
   const nomeFinal =
     nomeProposta ||
-    `Grade Gerada Automaticamente - ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+    `Proposta Automática FET - ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 
   const novaProposta = await prisma.propostaGrade.create({
     data: {
       periodoLetivoId: periodoLetivoId,
       nome: nomeFinal,
       status: "RASCUNHO",
-      observacoes: `Gerada automaticamente pelo motor heurístico. Alocadas: ${alocacoesGeradas.length}/${todosComponentes.length}.`,
+      observacoes: `Gerada automaticamente pelo motor heurístico FET. Resultado: ${resultado} (${alocacoesGeradas.length}/${todosComponentes.length} componentes alocados).`,
       alocacoes: {
         create: alocacoesGeradas.map((a) => ({
           componenteAulaId: a.componenteAulaId,
@@ -255,7 +312,7 @@ export async function gerarPropostaGradeAutomatica(
     },
   });
 
-  // 8. Executar validação rigorosa com o motor do Passo 2
+  // 8. Executar validação rigorosa com o motor de regras
   const relatorioValidacao = await validarPropostaDoBanco(novaProposta.id);
 
   return {

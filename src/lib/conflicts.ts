@@ -5,6 +5,7 @@ export type TipoConflito =
   | "TURMA_SOBREPOSTA"         // Mesma turma com duas atividades no mesmo horário
   | "CAPACIDADE_INSUFICIENTE"  // RN11: Quantidade de alunos excede capacidade da sala
   | "SALA_EM_MANUTENCAO"       // RN12: Sala em manutenção ou inativa
+  | "SALA_INDISPONIVEL"        // RN12: Sala indisponível no intervalo de horário informado
   | "SABADO_COM_SALA_FISICA"   // Regra do Projeto: Aos sábados não há presencial no campus
   | "REMOTO_COM_SALA"          // RN09: Componente remoto ocupando sala física
   | "PRESENCIAL_SEM_SALA";     // RN09/RN13: Componente presencial sem sala de segunda a sexta
@@ -43,6 +44,12 @@ export interface AlocacaoParaValidacao {
     capacidade: number;
     emManutencao: boolean;
     ativo: boolean;
+    disponibilidade?: Array<{
+      diaSemana: DiaSemana;
+      horaInicio: string;
+      horaFim: string;
+      disponivel: boolean;
+    }>;
   } | null;
 }
 
@@ -145,6 +152,27 @@ export function validarGrade(alocacoes: AlocacaoParaValidacao[]): Conflito[] {
           salaId: a.sala.id,
           turmaId: a.componente.oferta.turmaId,
         });
+      }
+
+      // Regra 5b (RN12): Intervalos de indisponibilidade da sala
+      if (a.sala.disponibilidade && a.sala.disponibilidade.length > 0) {
+        const restricaoConflitante = a.sala.disponibilidade.find(
+          (d) =>
+            !d.disponivel &&
+            d.diaSemana === a.diaSemana &&
+            haSobreposicaoHorario(a.horaInicio, a.horaFim, d.horaInicio, d.horaFim)
+        );
+        if (restricaoConflitante) {
+          conflitos.push({
+            tipo: "SALA_INDISPONIVEL",
+            gravidade: "ERRO",
+            mensagem: `Sala indisponível no horário: "${a.sala.codigo}" possui restrição em ${a.diaSemana} (${restricaoConflitante.horaInicio} às ${restricaoConflitante.horaFim}).`,
+            alocacaoIdA: a.id,
+            salaId: a.sala.id,
+            diaSemana: a.diaSemana,
+            horario: `${a.horaInicio} - ${a.horaFim}`,
+          });
+        }
       }
     }
 
