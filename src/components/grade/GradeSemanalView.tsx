@@ -19,8 +19,18 @@ import {
   Sparkles,
   Edit3,
   RotateCcw,
+  Plus,
+  FolderPlus,
+  BookOpen,
 } from "lucide-react";
-import { gerarGradeAutomaticaAction, confirmarGradeAction, atualizarAlocacaoAction } from "@/app/actions/grade-actions";
+import {
+  gerarGradeAutomaticaAction,
+  confirmarGradeAction,
+  atualizarAlocacaoAction,
+  criarSalaAction,
+  criarTurmaAction,
+  criarDisciplinaEOfertaAction,
+} from "@/app/actions/grade-actions";
 import { JANELAS_NOITE } from "@/lib/services/solver-service";
 
 export interface AlocacaoGrade {
@@ -113,6 +123,11 @@ export interface PropsGradeView {
     capacidade: number;
     emManutencao: boolean;
   }>;
+  todosCursos?: Array<{
+    id: string;
+    codigo: string;
+    nome: string;
+  }>;
 }
 
 const DIAS = [
@@ -143,9 +158,10 @@ export function GradeSemanalView({
   todasPropostas = [],
   relatorioValidacao,
   todasSalas,
+  todosCursos = [],
 }: PropsGradeView) {
   const [alocacaoSelecionada, setAlocacaoSelecionada] = useState<AlocacaoGrade | null>(null);
-  const [abaAtiva, setAbaAtiva] = useState<"grade" | "salas" | "conflitos">("grade");
+  const [abaAtiva, setAbaAtiva] = useState<"grade" | "salas" | "conflitos" | "gestao">("grade");
   const [modalGeracaoAberto, setModalGeracaoAberto] = useState(false);
   const [nomeNovaProposta, setNomeNovaProposta] = useState("");
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
@@ -159,48 +175,24 @@ export function GradeSemanalView({
   const [editJanelaIdx, setEditJanelaIdx] = useState<number>(0);
   const [erroEdicao, setErroEdicao] = useState<string | null>(null);
 
+  // Estados de Cadastro Rápido (Passo 6)
+  const [formSalaCodigo, setFormSalaCodigo] = useState("");
+  const [formSalaPredio, setFormSalaPredio] = useState("Bloco C");
+  const [formSalaCapacidade, setFormSalaCapacidade] = useState(45);
+  const [formSalaManutencao, setFormSalaManutencao] = useState(false);
+
+  const [formTurmaCursoId, setFormTurmaCursoId] = useState(todosCursos[0]?.id || turmaAtual.curso.codigo);
+  const [formTurmaCodigo, setFormTurmaCodigo] = useState("");
+  const [formTurmaTurno, setFormTurmaTurno] = useState<"MANHA" | "NOITE">("NOITE");
+  const [formTurmaQtdAlunos, setFormTurmaQtdAlunos] = useState(40);
+
+  const [formDiscCodigo, setFormDiscCodigo] = useState("");
+  const [formDiscNome, setFormDiscNome] = useState("");
+  const [formDiscCh, setFormDiscCh] = useState(40);
+  const [formDiscModalidade, setFormDiscModalidade] = useState<"PRESENCIAL" | "DOL" | "HIBRIDA">("PRESENCIAL");
+  const [formDiscBlocos, setFormDiscBlocos] = useState(2);
+
   const alocacoes = proposta?.alocacoes || [];
-
-  const abrirDetalhesAlocacao = (aloc: AlocacaoGrade) => {
-    setAlocacaoSelecionada(aloc);
-    setModoEdicao(false);
-    setErroEdicao(null);
-    setEditSalaId(aloc.salaId);
-    setEditDiaSemana(aloc.diaSemana);
-
-    // Identificar a janela de horário atual
-    const janelas = JANELAS_NOITE[aloc.componenteAula.qtdBlocos] || JANELAS_NOITE[2];
-    const idx = janelas.findIndex(
-      (j) => j.horaInicio === aloc.horaInicio && j.horaFim === aloc.horaFim
-    );
-    setEditJanelaIdx(idx >= 0 ? idx : 0);
-  };
-
-  const handleSalvarEdicao = () => {
-    if (!alocacaoSelecionada) return;
-
-    const janelas = JANELAS_NOITE[alocacaoSelecionada.componenteAula.qtdBlocos] || JANELAS_NOITE[2];
-    const janela = janelas[editJanelaIdx] || janelas[0];
-
-    setErroEdicao(null);
-    startTransition(async () => {
-      const res = await atualizarAlocacaoAction({
-        alocacaoId: alocacaoSelecionada.id,
-        diaSemana: editDiaSemana as any,
-        horaInicio: janela.horaInicio,
-        horaFim: janela.horaFim,
-        salaId: editSalaId,
-      });
-
-      if (res.success) {
-        setMensagemSucesso("Alocação ajustada com sucesso! Sem choques.");
-        setAlocacaoSelecionada(null);
-        setModoEdicao(false);
-      } else {
-        setErroEdicao(res.error || "Ajuste rejeitado por violar regras de alocação.");
-      }
-    });
-  };
 
   const handleGerarAutomaticamente = () => {
     if (!proposta?.periodoLetivoId) return;
@@ -239,9 +231,127 @@ export function GradeSemanalView({
     });
   };
 
+  const abrirDetalhesAlocacao = (aloc: AlocacaoGrade) => {
+    setAlocacaoSelecionada(aloc);
+    setModoEdicao(false);
+    setErroEdicao(null);
+    setEditSalaId(aloc.salaId);
+    setEditDiaSemana(aloc.diaSemana);
+
+    const janelas = JANELAS_NOITE[aloc.componenteAula.qtdBlocos] || JANELAS_NOITE[2];
+    const idx = janelas.findIndex(
+      (j) => j.horaInicio === aloc.horaInicio && j.horaFim === aloc.horaFim
+    );
+    setEditJanelaIdx(idx >= 0 ? idx : 0);
+  };
+
+  const handleSalvarEdicao = () => {
+    if (!alocacaoSelecionada) return;
+
+    const janelas = JANELAS_NOITE[alocacaoSelecionada.componenteAula.qtdBlocos] || JANELAS_NOITE[2];
+    const janela = janelas[editJanelaIdx] || janelas[0];
+
+    setErroEdicao(null);
+    startTransition(async () => {
+      const res = await atualizarAlocacaoAction({
+        alocacaoId: alocacaoSelecionada.id,
+        diaSemana: editDiaSemana as any,
+        horaInicio: janela.horaInicio,
+        horaFim: janela.horaFim,
+        salaId: editSalaId,
+      });
+
+      if (res.success) {
+        setMensagemSucesso("Alocação ajustada com sucesso! Sem choques.");
+        setAlocacaoSelecionada(null);
+        setModoEdicao(false);
+      } else {
+        setErroEdicao(res.error || "Ajuste rejeitado por violar regras de alocação.");
+      }
+    });
+  };
+
+  // Cadastros Rápidos (Passo 6)
+  const handleCriarSala = () => {
+    if (!formSalaCodigo.trim()) {
+      setMensagemErro("Informe o código da sala.");
+      return;
+    }
+    setMensagemErro(null);
+    startTransition(async () => {
+      const res = await criarSalaAction({
+        codigo: formSalaCodigo.trim(),
+        predio: formSalaPredio.trim(),
+        capacidade: formSalaCapacidade,
+        emManutencao: formSalaManutencao,
+      });
+
+      if (res.success) {
+        setMensagemSucesso(res.message || "Sala criada com sucesso!");
+        setFormSalaCodigo("");
+      } else {
+        setMensagemErro(res.error || "Erro ao cadastrar sala.");
+      }
+    });
+  };
+
+  const handleCriarTurma = () => {
+    if (!formTurmaCodigo.trim()) {
+      setMensagemErro("Informe o código da turma.");
+      return;
+    }
+    const cursoId = formTurmaCursoId || todosCursos[0]?.id;
+    if (!cursoId) {
+      setMensagemErro("Selecione um curso válido.");
+      return;
+    }
+    setMensagemErro(null);
+    startTransition(async () => {
+      const res = await criarTurmaAction({
+        cursoId,
+        codigo: formTurmaCodigo.trim(),
+        turno: formTurmaTurno,
+        qtdAlunos: formTurmaQtdAlunos,
+      });
+
+      if (res.success) {
+        setMensagemSucesso(res.message || "Turma criada com sucesso!");
+        setFormTurmaCodigo("");
+      } else {
+        setMensagemErro(res.error || "Erro ao cadastrar turma.");
+      }
+    });
+  };
+
+  const handleCriarDisciplina = () => {
+    if (!formDiscCodigo.trim() || !formDiscNome.trim() || !proposta?.periodoLetivoId) {
+      setMensagemErro("Preencha código e nome da disciplina.");
+      return;
+    }
+    setMensagemErro(null);
+    startTransition(async () => {
+      const res = await criarDisciplinaEOfertaAction({
+        codigo: formDiscCodigo.trim(),
+        nome: formDiscNome.trim(),
+        chTotal: formDiscCh,
+        modalidade: formDiscModalidade,
+        qtdBlocos: formDiscBlocos,
+        turmaId: turmaAtual.id,
+        periodoLetivoId: proposta.periodoLetivoId,
+      });
+
+      if (res.success) {
+        setMensagemSucesso(res.message || "Disciplina cadastrada e ofertada com sucesso!");
+        setFormDiscCodigo("");
+        setFormDiscNome("");
+      } else {
+        setMensagemErro(res.error || "Erro ao ofertar disciplina.");
+      }
+    });
+  };
+
   // Mapear alocações por dia
   const renderColunaDia = (diaKey: string) => {
-    // Caso especial: Sábado (Aulas Online / DOL informativas)
     if (diaKey === "SABADO") {
       const alocacoesSabado = alocacoes.filter((a) => a.diaSemana === "SABADO");
 
@@ -290,9 +400,7 @@ export function GradeSemanalView({
       );
     }
 
-    // Dias úteis: Segunda a Sexta
     const alocsDia = alocacoes.filter((a) => a.diaSemana === diaKey);
-
     const slotsRenderizados: React.ReactNode[] = [];
     let i = 0;
 
@@ -509,6 +617,16 @@ export function GradeSemanalView({
                 {relatorioValidacao?.conflitos.length || 0}
               </span>
             </button>
+            <button
+              onClick={() => setAbaAtiva("gestao")}
+              className={`px-3 py-1.5 rounded-md transition-all ${
+                abaAtiva === "gestao"
+                  ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm font-semibold"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900"
+              }`}
+            >
+              Cadastros & Gestão
+            </button>
           </div>
         </div>
       </div>
@@ -516,7 +634,6 @@ export function GradeSemanalView({
       {/* Conteúdo Principal */}
       {abaAtiva === "grade" && (
         <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm space-y-4">
-          {/* Barra de Status e Indicadores */}
           <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-zinc-800 text-xs">
             <div className="flex items-center gap-4">
               <span className="text-slate-500 font-medium">
@@ -536,11 +653,9 @@ export function GradeSemanalView({
             </div>
           </div>
 
-          {/* Grade de 6 Colunas: Segunda a Sábado */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
             {DIAS.map((dia) => (
               <div key={dia.key} className="flex flex-col space-y-2">
-                {/* Cabeçalho do Dia */}
                 <div
                   className={`text-center py-2 px-1 rounded-md text-xs font-bold tracking-wider ${
                     dia.key === "SABADO"
@@ -550,14 +665,11 @@ export function GradeSemanalView({
                 >
                   {dia.label}
                 </div>
-
-                {/* Linhas de Slots ou Card Informativo */}
                 {renderColunaDia(dia.key)}
               </div>
             ))}
           </div>
 
-          {/* Legenda Estilo Grade Oficial */}
           <div className="flex flex-wrap items-center gap-6 pt-4 border-t border-slate-100 dark:border-zinc-800 text-xs text-slate-600 dark:text-slate-400">
             <div className="flex items-center gap-2">
               <span className="w-3.5 h-3.5 rounded-full bg-blue-600"></span>
@@ -585,7 +697,16 @@ export function GradeSemanalView({
               <Building2 className="w-5 h-5 text-blue-600" />
               Salas Físicas Cadastradas para Ensalamento
             </h3>
-            <span className="text-xs text-slate-500">{todasSalas.length} salas registradas</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-500">{todasSalas.length} salas registradas</span>
+              <button
+                onClick={() => setAbaAtiva("gestao")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Nova Sala</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -651,6 +772,247 @@ export function GradeSemanalView({
               <li><strong>RN12:</strong> Salas interditadas ou inativas são ignoradas pelo solucionador.</li>
               <li><strong>Regra do Sábado:</strong> Disciplinas online / DOL ficam concentradas no sábado sem uso de sala física.</li>
             </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Aba de Cadastros Rápidos & Gestão (Passo 6 do MVP) */}
+      {abaAtiva === "gestao" && (
+        <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm space-y-6">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-zinc-50 flex items-center gap-2">
+                <FolderPlus className="w-5 h-5 text-blue-600" />
+                Cadastros e Gestão de Dados do MVP
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Cadastre novas salas físicas, turmas e ofertas diretamente pelo painel administrativo
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Card 1: Cadastrar Sala Física */}
+            <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/40 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-zinc-100 pb-2 border-b border-slate-200 dark:border-zinc-700">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                <span>Nova Sala Física (RF07)</span>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-zinc-300">Código / Identificação:</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Sala 305 - Bloco C"
+                    value={formSalaCodigo}
+                    onChange={(e) => setFormSalaCodigo(e.target.value)}
+                    disabled={isPending}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-zinc-300">Prédio / Bloco:</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Bloco C"
+                      value={formSalaPredio}
+                      onChange={(e) => setFormSalaPredio(e.target.value)}
+                      disabled={isPending}
+                      className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-zinc-300">Capacidade Máxima:</label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={120}
+                      value={formSalaCapacidade}
+                      onChange={(e) => setFormSalaCapacidade(Number(e.target.value))}
+                      disabled={isPending}
+                      className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="salaManutencao"
+                    checked={formSalaManutencao}
+                    onChange={(e) => setFormSalaManutencao(e.target.checked)}
+                    disabled={isPending}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="salaManutencao" className="text-slate-600 dark:text-slate-400 cursor-pointer">
+                    Em Manutenção (interditada)
+                  </label>
+                </div>
+
+                <button
+                  onClick={handleCriarSala}
+                  disabled={isPending}
+                  className="w-full mt-2 flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all disabled:opacity-50"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Cadastrar Sala</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Card 2: Cadastrar Turma */}
+            <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/40 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-zinc-100 pb-2 border-b border-slate-200 dark:border-zinc-700">
+                <Users className="w-4 h-4 text-indigo-600" />
+                <span>Nova Turma (RF03)</span>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-zinc-300">Curso:</label>
+                  <select
+                    value={formTurmaCursoId}
+                    onChange={(e) => setFormTurmaCursoId(e.target.value)}
+                    disabled={isPending}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100"
+                  >
+                    {todosCursos.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome} ({c.codigo})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-zinc-300">Código da Turma:</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: CC-7NA ou CC-5MA"
+                    value={formTurmaCodigo}
+                    onChange={(e) => setFormTurmaCodigo(e.target.value)}
+                    disabled={isPending}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-zinc-300">Turno:</label>
+                    <select
+                      value={formTurmaTurno}
+                      onChange={(e) => setFormTurmaTurno(e.target.value as any)}
+                      disabled={isPending}
+                      className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100"
+                    >
+                      <option value="NOITE">Noite (18:30 - 21:50)</option>
+                      <option value="MANHA">Manhã (07:30 - 11:10)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-zinc-300">Qtd Alunos:</label>
+                    <input
+                      type="number"
+                      min={5}
+                      max={120}
+                      value={formTurmaQtdAlunos}
+                      onChange={(e) => setFormTurmaQtdAlunos(Number(e.target.value))}
+                      disabled={isPending}
+                      className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleCriarTurma}
+                  disabled={isPending}
+                  className="w-full mt-2 flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all disabled:opacity-50"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Cadastrar Turma</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Card 3: Ofertar Nova Disciplina */}
+            <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/40 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-zinc-100 pb-2 border-b border-slate-200 dark:border-zinc-700">
+                <BookOpen className="w-4 h-4 text-emerald-600" />
+                <span>Ofertar Disciplina (RF02 / RF04)</span>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="col-span-1">
+                    <label className="font-semibold text-slate-700 dark:text-zinc-300">Código:</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: CC702"
+                      value={formDiscCodigo}
+                      onChange={(e) => setFormDiscCodigo(e.target.value)}
+                      disabled={isPending}
+                      className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="font-semibold text-slate-700 dark:text-zinc-300">Nome:</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Compiladores"
+                      value={formDiscNome}
+                      onChange={(e) => setFormDiscNome(e.target.value)}
+                      disabled={isPending}
+                      className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-zinc-300">Modalidade:</label>
+                    <select
+                      value={formDiscModalidade}
+                      onChange={(e) => setFormDiscModalidade(e.target.value as any)}
+                      disabled={isPending}
+                      className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100"
+                    >
+                      <option value="PRESENCIAL">Presencial (Campus)</option>
+                      <option value="DOL">DOL (Online / Sábado)</option>
+                      <option value="HIBRIDA">Híbrida</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-zinc-300">Duração / Blocos:</label>
+                    <select
+                      value={formDiscBlocos}
+                      onChange={(e) => setFormDiscBlocos(Number(e.target.value))}
+                      disabled={isPending}
+                      className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100"
+                    >
+                      <option value={2}>2 Aulas (1h40min)</option>
+                      <option value={3}>3 Aulas (2h30min)</option>
+                      <option value={1}>1 Aula (50min)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="p-2 rounded bg-slate-100 dark:bg-zinc-800 text-[11px] text-slate-600 dark:text-slate-400">
+                  Turma destino: <strong>{turmaAtual.codigo}</strong> ({turmaAtual.qtdAlunos} alunos)
+                </div>
+
+                <button
+                  onClick={handleCriarDisciplina}
+                  disabled={isPending}
+                  className="w-full mt-2 flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-all disabled:opacity-50"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Ofertar Disciplina</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

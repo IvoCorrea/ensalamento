@@ -12,6 +12,7 @@
     "db:seed": "node prisma/seed.js",
     "db:studio": "prisma studio",
     "test:conflicts": "npx tsx test-validator.js",
+    "test:create": "npx tsx test-create-data.ts",
     "test:grade": "npx tsx test-db-validation.ts",
     "test:manual": "npx tsx test-manual-adjustment.ts",
     "test:solver": "npx tsx test-solver.ts"

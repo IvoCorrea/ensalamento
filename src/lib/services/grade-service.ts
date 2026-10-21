@@ -229,6 +229,11 @@ export async function getDadosGradeTurma(turmaCodigo?: string, propostaId?: stri
     orderBy: [{ predio: "asc" }, { codigo: "asc" }],
   });
 
+  // Buscar todos os cursos cadastrados
+  const todosCursos = await prisma.curso.findMany({
+    orderBy: { nome: "asc" },
+  });
+
   return {
     turmaAtual: turma,
     todasTurmas,
@@ -236,5 +241,6 @@ export async function getDadosGradeTurma(turmaCodigo?: string, propostaId?: stri
     todasPropostas,
     relatorioValidacao,
     todasSalas,
+    todosCursos,
   };
 }

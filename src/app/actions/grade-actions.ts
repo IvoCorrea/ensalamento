@@ -173,3 +173,130 @@ export async function atualizarAlocacaoAction(dados: {
     return { success: false, error: error.message || "Erro ao atualizar alocação." };
   }
 }
+
+// ==========================================
+// CADASTROS RÁPIDOS (PASSO 6 DO MVP)
+// ==========================================
+
+export async function criarSalaAction(dados: {
+  codigo: string;
+  predio?: string;
+  andar?: number;
+  capacidade: number;
+  emManutencao?: boolean;
+}) {
+  try {
+    const salaExistente = await prisma.sala.findUnique({
+      where: { codigo: dados.codigo },
+    });
+
+    if (salaExistente) {
+      return { success: false, error: `Já existe uma sala cadastrada com o código "${dados.codigo}".` };
+    }
+
+    const novaSala = await prisma.sala.create({
+      data: {
+        codigo: dados.codigo,
+        predio: dados.predio || null,
+        andar: dados.andar || null,
+        capacidade: Number(dados.capacidade),
+        emManutencao: Boolean(dados.emManutencao),
+        ativo: true,
+      },
+    });
+
+    try {
+      revalidatePath("/");
+    } catch {}
+
+    return { success: true, data: novaSala, message: `Sala "${novaSala.codigo}" cadastrada com sucesso!` };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Erro ao cadastrar sala." };
+  }
+}
+
+export async function criarTurmaAction(dados: {
+  cursoId: string;
+  codigo: string;
+  turno: "MANHA" | "NOITE";
+  qtdAlunos: number;
+}) {
+  try {
+    const novaTurma = await prisma.turma.create({
+      data: {
+        cursoId: dados.cursoId,
+        codigo: dados.codigo,
+        turno: dados.turno,
+        qtdAlunos: Number(dados.qtdAlunos),
+        ativo: true,
+      },
+    });
+
+    try {
+      revalidatePath("/");
+    } catch {}
+
+    return { success: true, data: novaTurma, message: `Turma "${novaTurma.codigo}" cadastrada com sucesso!` };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Erro ao cadastrar turma." };
+  }
+}
+
+export async function criarDisciplinaEOfertaAction(dados: {
+  codigo: string;
+  nome: string;
+  chTotal: number;
+  modalidade: "PRESENCIAL" | "HIBRIDA" | "DOL" | "EAD";
+  qtdBlocos: number;
+  turmaId: string;
+  periodoLetivoId: string;
+}) {
+  try {
+    // Buscar ou criar disciplina
+    let disciplina = await prisma.disciplina.findUnique({
+      where: { codigo: dados.codigo },
+    });
+
+    if (!disciplina) {
+      disciplina = await prisma.disciplina.create({
+        data: {
+          codigo: dados.codigo,
+          nome: dados.nome,
+          chTotal: Number(dados.chTotal),
+          chPresencial: dados.modalidade === "DOL" || dados.modalidade === "EAD" ? 0 : Number(dados.chTotal),
+          chRemota: dados.modalidade === "DOL" || dados.modalidade === "EAD" ? Number(dados.chTotal) : 0,
+        },
+      });
+    }
+
+    // Criar oferta para a turma
+    const oferta = await prisma.ofertaDisciplina.create({
+      data: {
+        turmaId: dados.turmaId,
+        disciplinaId: disciplina.id,
+        periodoLetivoId: dados.periodoLetivoId,
+        modalidade: dados.modalidade,
+      },
+    });
+
+    // Criar componente de aula correspondente
+    const componente = await prisma.componenteAula.create({
+      data: {
+        ofertaDisciplinaId: oferta.id,
+        tipo: dados.modalidade === "DOL" || dados.modalidade === "EAD" ? "REMOTO" : "PRESENCIAL",
+        qtdBlocos: Number(dados.qtdBlocos),
+      },
+    });
+
+    try {
+      revalidatePath("/");
+    } catch {}
+
+    return {
+      success: true,
+      message: `Disciplina "${disciplina.nome}" ofertada com sucesso para a turma!`,
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Erro ao cadastrar disciplina e oferta." };
+  }
+}

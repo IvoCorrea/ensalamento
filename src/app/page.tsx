@@ -63,6 +63,7 @@ export default async function HomePage() {
           todasPropostas={dados.todasPropostas as any}
           relatorioValidacao={dados.relatorioValidacao}
           todasSalas={dados.todasSalas}
+          todosCursos={dados.todosCursos}
         />
       </main>
     </div>
