@@ -124,7 +124,7 @@ export async function validarPropostaDoBanco(propostaId: string): Promise<Relato
   };
 }
 
-export async function getDadosGradeTurma(turmaCodigo?: string) {
+export async function getDadosGradeTurma(turmaCodigo?: string, propostaId?: string) {
   // Buscar a turma selecionada ou a primeira turma
   const turma = turmaCodigo
     ? await prisma.turma.findFirst({
@@ -154,35 +154,72 @@ export async function getDadosGradeTurma(turmaCodigo?: string) {
     orderBy: { codigo: "asc" },
   });
 
-  // Buscar a proposta de grade mais recente
-  const proposta = await prisma.propostaGrade.findFirst({
+  // Buscar todas as propostas existentes
+  const todasPropostas = await prisma.propostaGrade.findMany({
     include: {
       periodoLetivo: true,
-      alocacoes: {
-        where: {
-          componenteAula: {
-            oferta: {
-              turmaId: turma.id,
-            },
-          },
-        },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Buscar a proposta de grade selecionada ou a mais recente
+  const proposta = propostaId
+    ? await prisma.propostaGrade.findUnique({
+        where: { id: propostaId },
         include: {
-          sala: true,
-          componenteAula: {
+          periodoLetivo: true,
+          alocacoes: {
+            where: {
+              componenteAula: {
+                oferta: {
+                  turmaId: turma.id,
+                },
+              },
+            },
             include: {
-              oferta: {
+              sala: true,
+              componenteAula: {
                 include: {
-                  disciplina: true,
-                  turma: true,
+                  oferta: {
+                    include: {
+                      disciplina: true,
+                      turma: true,
+                    },
+                  },
                 },
               },
             },
           },
         },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      })
+    : await prisma.propostaGrade.findFirst({
+        include: {
+          periodoLetivo: true,
+          alocacoes: {
+            where: {
+              componenteAula: {
+                oferta: {
+                  turmaId: turma.id,
+                },
+              },
+            },
+            include: {
+              sala: true,
+              componenteAula: {
+                include: {
+                  oferta: {
+                    include: {
+                      disciplina: true,
+                      turma: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
 
   // Executar validação geral
   const relatorioValidacao = proposta ? await validarPropostaDoBanco(proposta.id) : null;
@@ -196,6 +233,7 @@ export async function getDadosGradeTurma(turmaCodigo?: string) {
     turmaAtual: turma,
     todasTurmas,
     proposta,
+    todasPropostas,
     relatorioValidacao,
     todasSalas,
   };

@@ -60,6 +60,7 @@ export default async function HomePage() {
           turmaAtual={dados.turmaAtual as any}
           todasTurmas={dados.todasTurmas as any}
           proposta={dados.proposta as any}
+          todasPropostas={dados.todasPropostas as any}
           relatorioValidacao={dados.relatorioValidacao}
           todasSalas={dados.todasSalas}
         />

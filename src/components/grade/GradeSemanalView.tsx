@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useTransition } from "react";
 import {
   Calendar,
   Clock,
@@ -13,7 +13,12 @@ import {
   Layers,
   Info,
   ShieldCheck,
+  Zap,
+  Check,
+  Loader2,
+  Sparkles,
 } from "lucide-react";
+import { gerarGradeAutomaticaAction, confirmarGradeAction } from "@/app/actions/grade-actions";
 
 export interface AlocacaoGrade {
   id: string;
@@ -73,12 +78,20 @@ export interface PropsGradeView {
     nome: string;
     status: string;
     observacoes: string | null;
+    periodoLetivoId: string;
     periodoLetivo: {
+      id: string;
       codigo: string;
       nome: string;
     };
     alocacoes: AlocacaoGrade[];
   } | null;
+  todasPropostas?: Array<{
+    id: string;
+    nome: string;
+    status: string;
+    createdAt: Date;
+  }>;
   relatorioValidacao: {
     statusGrade: string;
     totalAlocacoes: number;
@@ -124,13 +137,56 @@ export function GradeSemanalView({
   turmaAtual,
   todasTurmas,
   proposta,
+  todasPropostas = [],
   relatorioValidacao,
   todasSalas,
 }: PropsGradeView) {
   const [alocacaoSelecionada, setAlocacaoSelecionada] = useState<AlocacaoGrade | null>(null);
   const [abaAtiva, setAbaAtiva] = useState<"grade" | "salas" | "conflitos">("grade");
+  const [modalGeracaoAberto, setModalGeracaoAberto] = useState(false);
+  const [nomeNovaProposta, setNomeNovaProposta] = useState("");
+  const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
+  const [mensagemErro, setMensagemErro] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const alocacoes = proposta?.alocacoes || [];
+
+  const handleGerarAutomaticamente = () => {
+    if (!proposta?.periodoLetivoId) return;
+
+    setMensagemErro(null);
+    setMensagemSucesso(null);
+
+    startTransition(async () => {
+      const res = await gerarGradeAutomaticaAction(
+        proposta.periodoLetivoId,
+        nomeNovaProposta.trim() || undefined
+      );
+
+      if (res.success && res.data) {
+        setMensagemSucesso(
+          `Nova grade "${res.data.propostaNome}" gerada com sucesso! ${res.data.totalAlocadas} atividades alocadas sem conflitos.`
+        );
+        setModalGeracaoAberto(false);
+        setNomeNovaProposta("");
+      } else {
+        setMensagemErro(res.error || "Erro ao processar algoritmo de ensalamento.");
+      }
+    });
+  };
+
+  const handleConfirmarGrade = () => {
+    if (!proposta?.id) return;
+
+    startTransition(async () => {
+      const res = await confirmarGradeAction(proposta.id);
+      if (res.success) {
+        setMensagemSucesso("Proposta oficializada com sucesso pela coordenação!");
+      } else {
+        setMensagemErro(res.error || "Erro ao confirmar proposta.");
+      }
+    });
+  };
 
   // Mapear alocações por dia
   const renderColunaDia = (diaKey: string) => {
@@ -184,11 +240,8 @@ export function GradeSemanalView({
     }
 
     // Dias úteis: Segunda a Sexta
-    // Obter alocações desse dia
     const alocsDia = alocacoes.filter((a) => a.diaSemana === diaKey);
 
-    // Renderizar slots da noite
-    // Agrupamento por blocos ocupados
     const slotsRenderizados: React.ReactNode[] = [];
     let i = 0;
 
@@ -197,7 +250,6 @@ export function GradeSemanalView({
       const slotMinInicio = horaParaMin(slot.horaInicio);
       const slotMinFim = horaParaMin(slot.horaFim);
 
-      // Encontrar alocação que começa neste slot ou o engloba
       const aloc = alocsDia.find((a) => {
         const alocInicio = horaParaMin(a.horaInicio);
         const alocFim = horaParaMin(a.horaFim);
@@ -205,7 +257,6 @@ export function GradeSemanalView({
       });
 
       if (!aloc) {
-        // Slot vazio
         slotsRenderizados.push(
           <div
             key={`empty-${slot.id}`}
@@ -217,17 +268,14 @@ export function GradeSemanalView({
         );
         i++;
       } else {
-        // Verificar quantos slots este card abrange a partir daqui
         const alocInicio = horaParaMin(aloc.horaInicio);
         const alocFim = horaParaMin(aloc.horaFim);
 
-        // Se a alocação começou antes deste slot, ela já foi renderizada
         if (alocInicio < slotMinInicio) {
           i++;
           continue;
         }
 
-        // Quantos slots futuros ela cobre?
         let slotsSpan = 1;
         for (let next = i + 1; next < SLOTS_NOITE.length; next++) {
           const nextSlot = SLOTS_NOITE[next];
@@ -239,7 +287,6 @@ export function GradeSemanalView({
           }
         }
 
-        // Altura proporcional: 96px por slot + 8px de gap
         const altura = slotsSpan * 96 + (slotsSpan - 1) * 8;
 
         slotsRenderizados.push(
@@ -286,6 +333,37 @@ export function GradeSemanalView({
 
   return (
     <div className="space-y-6">
+      {/* Banners de Mensagens de Sucesso ou Erro */}
+      {mensagemSucesso && (
+        <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-sm text-emerald-900 dark:text-emerald-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span>{mensagemSucesso}</span>
+          </div>
+          <button
+            onClick={() => setMensagemSucesso(null)}
+            className="text-xs text-emerald-700 dark:text-emerald-300 font-bold hover:underline"
+          >
+            Fechar
+          </button>
+        </div>
+      )}
+
+      {mensagemErro && (
+        <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 text-sm text-red-900 dark:text-red-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+            <span>{mensagemErro}</span>
+          </div>
+          <button
+            onClick={() => setMensagemErro(null)}
+            className="text-xs text-red-700 dark:text-red-300 font-bold hover:underline"
+          >
+            Fechar
+          </button>
+        </div>
+      )}
+
       {/* Cabeçalho de Controle e Seleção */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
         <div className="flex items-center gap-3">
@@ -297,9 +375,15 @@ export function GradeSemanalView({
               <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
                 Grade Semanal de Ensalamento
               </h1>
-              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold border flex items-center gap-1 ${
+                  proposta?.status === "CONFIRMADA"
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800"
+                    : "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border-amber-300 dark:border-amber-800"
+                }`}
+              >
                 <ShieldCheck className="w-3.5 h-3.5" />
-                {proposta?.status || "CONFIRMADA"}
+                {proposta?.status || "RASCUNHO"}
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -310,8 +394,30 @@ export function GradeSemanalView({
           </div>
         </div>
 
-        {/* Resumo de Integridade e Abas */}
+        {/* Ações do Topo */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Botão de Geração Automática */}
+          <button
+            onClick={() => setModalGeracaoAberto(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold shadow-sm transition-all"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Gerar Grade Automática</span>
+          </button>
+
+          {/* Botão de Oficializar (quando status for RASCUNHO) */}
+          {proposta?.status === "RASCUNHO" && (
+            <button
+              onClick={handleConfirmarGrade}
+              disabled={isPending}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
+            >
+              {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              <span>Oficializar Grade</span>
+            </button>
+          )}
+
+          {/* Abas */}
           <div className="flex items-center rounded-lg bg-slate-100 dark:bg-zinc-800 p-1 text-xs font-medium">
             <button
               onClick={() => setAbaAtiva("grade")}
@@ -321,7 +427,7 @@ export function GradeSemanalView({
                   : "text-slate-600 dark:text-zinc-400 hover:text-slate-900"
               }`}
             >
-              Grade Semanal
+              Grade
             </button>
             <button
               onClick={() => setAbaAtiva("salas")}
@@ -331,7 +437,7 @@ export function GradeSemanalView({
                   : "text-slate-600 dark:text-zinc-400 hover:text-slate-900"
               }`}
             >
-              Salas Físicas ({todasSalas.length})
+              Salas ({todasSalas.length})
             </button>
             <button
               onClick={() => setAbaAtiva("conflitos")}
@@ -362,6 +468,9 @@ export function GradeSemanalView({
           {/* Barra de Status e Indicadores */}
           <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-zinc-800 text-xs">
             <div className="flex items-center gap-4">
+              <span className="text-slate-500 font-medium">
+                Proposta Ativa: <strong className="text-slate-800 dark:text-zinc-100">{proposta?.nome}</strong>
+              </span>
               <span className="text-slate-500 font-medium">Turno: <strong>Noturno (18:30 às 21:50)</strong></span>
               <span className="text-slate-500">
                 Alocações: <strong className="text-slate-700 dark:text-zinc-200">{alocacoes.length} ativas</strong>
@@ -482,20 +591,20 @@ export function GradeSemanalView({
           <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-900 dark:text-emerald-200 space-y-2">
             <div className="flex items-center gap-2 font-semibold text-sm">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              Todas as verificações passaram com sucesso:
+              Verificações automáticas do motor FET:
             </div>
             <ul className="list-disc list-inside space-y-1 ml-2 text-emerald-800 dark:text-emerald-300">
-              <li><strong>RN09 / RN13:</strong> Disciplinas presenciais alocadas em salas físicas válidas de Segunda a Quinta.</li>
-              <li><strong>RN10:</strong> Nenhuma sala possui duas turmas no mesmo horário sobreposto.</li>
-              <li><strong>RN11:</strong> Capacidade das salas ({'>='} 45 e 50 vagas) suporta perfeitamente a turma de 40 alunos.</li>
-              <li><strong>RN12:</strong> Nenhuma sala interditada ou em manutenção foi utilizada.</li>
-              <li><strong>Regra do Sábado:</strong> Disciplina DOL alocada no sábado sem ocupação de sala física (capacidade física poupada).</li>
+              <li><strong>RN09 / RN13:</strong> Aulas presenciais possuem sala física atribuída de Segunda a Sexta.</li>
+              <li><strong>RN10:</strong> Nenhuma sala possui duas turmas no mesmo horário.</li>
+              <li><strong>RN11:</strong> Capacidade das salas atende a quantidade de alunos matriculados.</li>
+              <li><strong>RN12:</strong> Salas interditadas ou inativas são ignoradas pelo solucionador.</li>
+              <li><strong>Regra do Sábado:</strong> Disciplinas online / DOL ficam concentradas no sábado sem uso de sala física.</li>
             </ul>
           </div>
         </div>
       )}
 
-      {/* Modal / Gaveta de Detalhes da Alocação Selecionada */}
+      {/* Modal de Detalhes da Alocação */}
       {alocacaoSelecionada && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
@@ -573,6 +682,97 @@ export function GradeSemanalView({
                 className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-semibold text-slate-700 dark:text-zinc-200 transition-colors"
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Disparo da Geração Automática */}
+      {modalGeracaoAberto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
+          onClick={() => !isPending && setModalGeracaoAberto(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-2xl space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-50">
+                  Gerar Grade Automática
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Motor heurístico inspirado no FET Timetabling
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              O algoritmo irá varrer todas as ofertas de disciplinas da turma{" "}
+              <strong>{turmaAtual.codigo}</strong> ({turmaAtual.qtdAlunos} alunos) no semestre{" "}
+              <strong>{proposta?.periodoLetivo.codigo}</strong>, priorizando atividades com mais blocos,
+              alocando salas com melhor aproveitamento de capacidade e destinando os sábados para
+              atividades DOL/Online sem ocupar salas físicas.
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                Nome da Nova Proposta (opcional)
+              </label>
+              <input
+                type="text"
+                placeholder={`Ex: Proposta Otimizada V${todasPropostas.length + 1}`}
+                value={nomeNovaProposta}
+                onChange={(e) => setNomeNovaProposta(e.target.value)}
+                disabled={isPending}
+                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-200 space-y-1">
+              <p className="font-semibold flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5" />
+                Garantias do Motor de Otimização:
+              </p>
+              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-blue-800 dark:text-blue-300 ml-1">
+                <li>Zero choques de horário na mesma sala ou turma</li>
+                <li>Salas respeitam a capacidade mínima de {turmaAtual.qtdAlunos} alunos</li>
+                <li>Salas interditadas ou em manutenção são descartadas</li>
+                <li>Sábados reservados para DOL / Remoto sem uso de salas físicas</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setModalGeracaoAberto(false)}
+                disabled={isPending}
+                className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-xs font-semibold text-slate-700 dark:text-zinc-200 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleGerarAutomaticamente}
+                disabled={isPending}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all disabled:opacity-50"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Calculando Combinações...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Executar Motor de Alocação</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
