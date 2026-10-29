@@ -204,7 +204,7 @@ export async function gerarPropostaGradeAutomatica(
         componenteId: comp.id,
         disciplinaNome: comp.oferta.disciplina.nome,
         turmaNome: turma.codigo,
-        motivo: `Capacidade insuficiente: a turma possui ${turma.qtdAlunos} alunos, mas a maior sala disponível comporta ${maiorCap} alunos (RN11).`,
+        motivo: `Capacidade insuficiente: a turma possui ${turma.qtdAlunos} alunos, mas a maior sala disponível comporta ${maiorCap} alunos.`,
       });
       continue;
     }
@@ -292,14 +292,14 @@ export async function gerarPropostaGradeAutomatica(
   // 7. Persistir a Proposta no Banco de Dados Supabase
   const nomeFinal =
     nomeProposta ||
-    `Proposta Automática FET - ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+    `Proposta Automática - ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 
   const novaProposta = await prisma.propostaGrade.create({
     data: {
       periodoLetivoId: periodoLetivoId,
       nome: nomeFinal,
       status: "RASCUNHO",
-      observacoes: `Gerada automaticamente pelo motor heurístico FET. Resultado: ${resultado} (${alocacoesGeradas.length}/${todosComponentes.length} componentes alocados).`,
+      observacoes: `Gerada automaticamente pelo sistema de alocação. Resultado: ${resultado} (${alocacoesGeradas.length}/${todosComponentes.length} componentes alocados).`,
       alocacoes: {
         create: alocacoesGeradas.map((a) => ({
           componenteAulaId: a.componenteAulaId,

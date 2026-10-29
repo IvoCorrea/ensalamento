@@ -70,12 +70,12 @@ export default async function DashboardHomePage() {
             href="/grade"
             className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors shadow-xs"
           >
-            Abrir Grade e Motor FET →
+            Abrir Grade Semanal →
           </Link>
         </div>
       </header>
 
-      {/* Cards de Indicadores do Semestre (Seção 5.1 do PDF) */}
+      {/* Cards de Indicadores do Semestre */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Link
           href="/cursos"
@@ -153,7 +153,7 @@ export default async function DashboardHomePage() {
           className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:border-blue-400 transition-all group"
         >
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-blue-600">
-            Não Alocados (RF13)
+            Atividades Pendentes
           </span>
           <div
             className={`text-2xl font-black mt-1 ${
@@ -176,7 +176,7 @@ export default async function DashboardHomePage() {
           className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:border-blue-400 transition-all group"
         >
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-blue-600">
-            Conflitos (RF10)
+            Conflitos de Horário
           </span>
           <div
             className={`text-2xl font-black mt-1 ${
@@ -336,7 +336,7 @@ export default async function DashboardHomePage() {
                 Cursos e Matrizes Curriculares
               </h3>
               <p className="text-xs text-slate-500">
-                Estrutura acadêmica com reaproveitamento de disciplinas (RN05)
+                Estrutura acadêmica com disciplinas compartilhadas entre cursos
               </p>
             </div>
             <Link
@@ -376,10 +376,10 @@ export default async function DashboardHomePage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-extrabold text-slate-900">
-                Propostas de Grade Horária (RF14)
+                Propostas de Grade Horária
               </h3>
               <p className="text-xs text-slate-500">
-                Histórico de simulações geradas pelo motor FET ou ajustadas manualmente
+                Histórico de versões geradas automaticamente ou ajustadas manualmente
               </p>
             </div>
             <Link

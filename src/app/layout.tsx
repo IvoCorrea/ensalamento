@@ -5,7 +5,7 @@ import AppShell from "@/components/layout/AppShell";
 export const metadata: Metadata = {
   title: "SOMA • Sistema de Organização de Matrizes Acadêmicas e Alocação de Salas",
   description:
-    "Sistema acadêmico de organização de matrizes curriculares, ofertas por modalidade e ensalamento inspirado no FET.",
+    "Sistema acadêmico de organização de matrizes curriculares, ofertas por modalidade e ensalamento inteligente de salas.",
 };
 
 export default function RootLayout({

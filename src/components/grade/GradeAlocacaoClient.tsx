@@ -256,12 +256,12 @@ export default function GradeAlocacaoClient({
       if (!res.sucesso) {
         setFeedback({
           tipo: "erro",
-          msg: res.erro || "Erro ao executar motor FET.",
+          msg: res.erro || "Erro ao gerar proposta automática.",
         });
       } else {
         setFeedback({
           tipo: "ok",
-          msg: `Nova proposta gerada pelo motor heurístico FET: ${res.totalAlocados} alocações realizadas (${res.totalConflitos} conflitos).`,
+          msg: `Nova proposta gerada com sucesso: ${res.totalAlocados} alocações realizadas (${res.totalConflitos} conflitos).`,
         });
         if (res.propostaId) {
           router.push(`/grade?proposta=${res.propostaId}&turma=${turmaSelecionadaCodigo}`);
@@ -366,13 +366,13 @@ export default function GradeAlocacaoClient({
 
   return (
     <div className="space-y-6">
-      {/* Barra Superior de Proposta + Motor FET + Alternador de Perspectiva (RF09, RF11, RF12) */}
+      {/* Barra Superior de Proposta + Alternador de Perspectiva */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div className="flex flex-wrap items-center gap-3">
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                Proposta de Grade Ativa (RF14)
+                Proposta de Grade Ativa
               </label>
               <select
                 value={propostaAtual?.id ?? ""}
@@ -424,13 +424,13 @@ export default function GradeAlocacaoClient({
               className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
             >
               {isPending
-                ? "Executando Motor FET..."
-                : "⚡ Gerar Nova Proposta Automática (Motor FET)"}
+                ? "Gerando Proposta Automática..."
+                : "⚡ Gerar Nova Proposta Automática"}
             </button>
           </div>
         </div>
 
-        {/* Alternador das 3 Perspectivas Exigidas no RF12 */}
+        {/* Alternador das 3 Perspectivas */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -514,7 +514,7 @@ export default function GradeAlocacaoClient({
         </div>
       )}
 
-      {/* Alerta de Componentes Pendentes de Alocação (RF13) com botão para Alocar Manualmente */}
+      {/* Alerta de Componentes Pendentes de Alocação com botão para Alocar Manualmente */}
       {componentesNaoAlocados.length > 0 && (
         <section className="bg-amber-50/90 border border-amber-300 rounded-2xl p-4 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -523,7 +523,7 @@ export default function GradeAlocacaoClient({
                 ⏳ Atividades Aguardando Alocação na Grade ({componentesNaoAlocados.length} no semestre • {pendentesDaTurmaAtual.length} na turma {turmaAtual?.codigo})
               </h3>
               <p className="text-xs text-amber-800">
-                Clique em qualquer atividade abaixo para alocar manualmente em uma sala/horário ou execute o Motor FET acima.
+                Clique em qualquer atividade abaixo para alocar manualmente em uma sala/horário ou use o botão de geração automática acima.
               </p>
             </div>
           </div>
@@ -773,10 +773,10 @@ export default function GradeAlocacaoClient({
                       >
                         <div className="p-2.5 rounded-xl bg-teal-100/80 border border-teal-300 text-teal-950">
                           <div className="font-black text-[11px] uppercase">
-                            Sábado • Atividades Online / DOL
+                            Sábado • Atividades Online / Remotas
                           </div>
                           <p className="text-[10px] text-teal-800 mt-0.5">
-                            Sem uso de sala física no campus (RN09).
+                            Sem uso de sala física no campus.
                           </p>
                         </div>
 
@@ -820,7 +820,7 @@ export default function GradeAlocacaoClient({
       )}
 
       {/* ===================================================================== */}
-      {/* MODO 2: VISÃO POR SALA FÍSICA (Ocupação Semanal da Sala - RF12)        */}
+      {/* MODO 2: VISÃO POR SALA FÍSICA (Ocupação Semanal da Sala) */}
       {/* ===================================================================== */}
       {modoVisao === "SALA" && salaAtual && (
         <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
@@ -941,7 +941,7 @@ export default function GradeAlocacaoClient({
                         >
                           {salaAtual.emManutencao && (
                             <div className="p-2 rounded-lg bg-red-100 text-red-800 font-bold text-[10px] mb-1">
-                              ⚠ Sala em Manutenção Geral (RN12)
+                              ⚠ Sala em Manutenção Geral
                             </div>
                           )}
                           {restricao && (
@@ -1206,7 +1206,7 @@ export default function GradeAlocacaoClient({
               alocacaoEditando.componente.requerSalaFisica && (
                 <div>
                   <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Sala Física (Validação RN11: mín.{" "}
+                    Sala Física (Capacidade recomendada: mín.{" "}
                     {alocacaoEditando.componente.oferta.turma.qtdAlunos} lugares)
                   </label>
                   <select
@@ -1235,7 +1235,7 @@ export default function GradeAlocacaoClient({
                 checked={forcarConflito}
                 onChange={(e) => setForcarConflito(e.target.checked)}
               />
-              Forçar salvamento mesmo se gerar conflito (para testar auditoria RF10)
+              Permitir salvar mesmo com conflitos detectados para revisão posterior
             </label>
 
             <div className="flex items-center justify-between pt-3 border-t border-slate-100">

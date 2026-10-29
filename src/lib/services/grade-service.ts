@@ -144,7 +144,7 @@ export async function validarPropostaDoBanco(
         c.tipo === TipoComponente.PRESENCIAL &&
         qtdAlunos > maiorCapacidadeSala
       ) {
-        motivoDiagnostico = `Capacidade incompatível (RN11): turma com ${qtdAlunos} alunos excede a maior sala disponível (${maiorCapacidadeSala} lugares).`;
+        motivoDiagnostico = `Capacidade incompatível: turma com ${qtdAlunos} alunos excede a maior sala disponível (${maiorCapacidadeSala} lugares).`;
       }
       return {
         componenteId: c.id,
@@ -579,7 +579,7 @@ export async function getDadosSalasEHorarios() {
       horaInicio: d.horaInicio,
       horaFim: d.horaFim,
       disponivel: d.disponivel,
-      motivo: "Bloqueio de Horário (RN12)",
+      motivo: "Bloqueio de Horário",
     })),
     alocacoes: s.alocacoes.map((a) => ({
       id: a.id,
@@ -732,7 +732,7 @@ export async function getDadosGradeCompleta(propostaId?: string) {
       horaInicio: d.horaInicio,
       horaFim: d.horaFim,
       disponivel: d.disponivel,
-      motivo: "Horário indisponível (RN12)",
+      motivo: "Horário indisponível",
     })),
   }));
 

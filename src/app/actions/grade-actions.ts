@@ -84,7 +84,7 @@ export async function alterarStatusPropostaAction(dados: {
       const validacao = await validarPropostaDoBanco(dados.propostaId);
       const erros = validacao.conflitos.filter((c) => c.gravidade === "ERRO");
       if (erros.length > 0) {
-        const msg = `RN14: Não é possível confirmar a proposta pois existem ${erros.length} violação(ões) obrigatória(s): ${erros[0].mensagem}`;
+        const msg = `Não é possível confirmar a proposta pois existem ${erros.length} conflito(s) impeditivo(s): ${erros[0].mensagem}`;
         return {
           success: false,
           sucesso: false,

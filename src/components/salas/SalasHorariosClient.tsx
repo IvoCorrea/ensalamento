@@ -114,7 +114,7 @@ export default function SalasHorariosClient({
         setFeedback({
           tipo: "ok",
           msg: !sala.emManutencao
-            ? `Sala ${sala.codigo} colocada em MANUTENÇÃO (RN12).`
+            ? `Sala ${sala.codigo} colocada em manutenção.`
             : `Sala ${sala.codigo} liberada para uso normal.`,
         });
         router.refresh();
@@ -195,12 +195,12 @@ export default function SalasHorariosClient({
         </div>
       )}
 
-      {/* Seção Superior: Configuração de Turnos e Faixas de Horário (RF08) */}
+      {/* Seção Superior: Configuração de Turnos e Faixas de Horário */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-black text-[10px] uppercase">
-              Turno Manhã (RF08)
+            <span className="px-2.5 py-0.5 rounded bg-amber-100 text-amber-800 font-black text-[10px] uppercase">
+              Turno Manhã
             </span>
             <span className="text-xs font-bold text-slate-600">
               Segunda a Sexta
@@ -223,8 +223,8 @@ export default function SalasHorariosClient({
 
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-black text-[10px] uppercase">
-              Turno Noite (RF08)
+            <span className="px-2.5 py-0.5 rounded bg-indigo-100 text-indigo-800 font-black text-[10px] uppercase">
+              Turno Noite
             </span>
             <span className="text-xs font-bold text-slate-600">
               Segunda a Sexta
@@ -247,18 +247,18 @@ export default function SalasHorariosClient({
 
         <div className="bg-teal-50/70 rounded-2xl border border-teal-200 p-4 shadow-2xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="px-2 py-0.5 rounded bg-teal-200 text-teal-900 font-black text-[10px] uppercase">
-              Sábado • Online / DOL (RN09)
+            <span className="px-2.5 py-0.5 rounded bg-teal-200 text-teal-900 font-black text-[10px] uppercase">
+              Sábado • Online / Remoto
             </span>
             <span className="text-xs font-bold text-teal-800">
-              Zero Salas Físicas
+              Sem Salas Físicas
             </span>
           </div>
           <h3 className="text-sm font-extrabold text-teal-950">
-            Reservado para Componentes Remotos & DOL
+            Reservado para Componentes Remotos e EAD
           </h3>
           <p className="text-xs text-teal-800 mt-1.5 leading-relaxed">
-            Não há aulas presenciais no campus aos sábados. O motor FET aloca automaticamente disciplinas DOL e a parte remota de disciplinas Híbridas no sábado sem consumir salas físicas.
+            Aos sábados, as atividades remotas e disciplinas online são alocadas sem ocupar salas físicas do campus.
           </p>
         </div>
       </section>
@@ -271,7 +271,7 @@ export default function SalasHorariosClient({
             className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-3"
           >
             <h2 className="text-sm font-extrabold text-slate-900">
-              + Cadastrar Nova Sala Física (RF07)
+              + Cadastrar Nova Sala Física
             </h2>
             <div className="grid grid-cols-2 gap-2.5">
               <div>
@@ -289,7 +289,7 @@ export default function SalasHorariosClient({
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  Capacidade Máx. (RN11)
+                  Capacidade Máxima
                 </label>
                 <input
                   type="number"
@@ -337,7 +337,7 @@ export default function SalasHorariosClient({
                 onChange={(e) => setEmManutencao(e.target.checked)}
                 className="rounded border-slate-300"
               />
-              Cadastrar inicialmente em manutenção (RN12)
+              Cadastrar inicialmente em manutenção
             </label>
 
             <button
@@ -418,7 +418,7 @@ export default function SalasHorariosClient({
                     </h2>
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
-                    Gerencie bloqueios por horário (RN12), status de manutenção e visualize todas as turmas alocadas nesta sala.
+                    Gerencie bloqueios por horário, status de manutenção e visualize todas as turmas alocadas nesta sala.
                   </p>
                 </div>
 
@@ -435,7 +435,7 @@ export default function SalasHorariosClient({
                   >
                     {salaAtual.emManutencao
                       ? "✓ Liberar Sala da Manutenção"
-                      : "⚠ Colocar em Manutenção (RN12)"}
+                      : "⚠ Colocar em Manutenção"}
                   </button>
 
                   <Link
@@ -461,10 +461,10 @@ export default function SalasHorariosClient({
               <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-900">
-                    Janelas de Indisponibilidade / Restrições de Horário (RN12)
+                    Janelas de Indisponibilidade / Restrições de Horário
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Caso a sala esteja reservada para limpeza técnica, evento ou manutenção parcial em determinado dia/horário, adicione a restrição abaixo. O motor FET e o validador bloquearão alocações nesse intervalo.
+                    Caso a sala esteja reservada para limpeza técnica, evento ou manutenção em determinado dia/horário, adicione a restrição abaixo para bloquear alocações nesse intervalo.
                   </p>
                 </div>
 

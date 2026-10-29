@@ -326,7 +326,7 @@ export default function TurmasOfertasClient({
           >
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-extrabold text-slate-900">
-                + Cadastrar Nova Turma (RF05)
+                + Cadastrar Nova Turma
               </h2>
               <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold text-[10px]">
                 2026.1
@@ -406,7 +406,7 @@ export default function TurmasOfertasClient({
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  Turno (RN07)
+                  Turno
                 </label>
                 <select
                   value={novoTurno}
@@ -554,7 +554,7 @@ export default function TurmasOfertasClient({
                   <div className="flex flex-wrap items-end gap-3">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                        Qtd. Estimada de Alunos (RN11)
+                        Qtd. Estimada de Alunos
                       </label>
                       <input
                         type="number"
@@ -614,7 +614,7 @@ export default function TurmasOfertasClient({
               >
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-900">
-                    + Adicionar Oferta de Disciplina na Turma {turmaAtual.codigo} (RF06)
+                    + Adicionar Oferta de Disciplina na Turma {turmaAtual.codigo}
                   </h3>
                   <p className="text-xs text-slate-500">
                     Defina a modalidade da oferta no semestre: Presencial (ocupa sala física Seg–Sex), Híbrida (gera componente presencial + componente remoto no Sábado) ou DOL/EAD/Ubíqua (alocada sem sala física).
@@ -643,7 +643,7 @@ export default function TurmasOfertasClient({
 
                   <div className="md:col-span-4">
                     <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                      Modalidade no Semestre (RN03)
+                      Modalidade no Semestre
                     </label>
                     <select
                       value={ofertaModalidade}
@@ -740,7 +740,7 @@ export default function TurmasOfertasClient({
                         <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase text-slate-500">
                           <th className="py-3 px-4">Disciplina</th>
                           <th className="py-3 px-4">Modalidade</th>
-                          <th className="py-3 px-4">Componentes de Aula (RN08/RN09)</th>
+                          <th className="py-3 px-4">Componentes de Aula</th>
                           <th className="py-3 px-4">Situação na Grade</th>
                           <th className="py-3 px-4 text-right">Ação</th>
                         </tr>

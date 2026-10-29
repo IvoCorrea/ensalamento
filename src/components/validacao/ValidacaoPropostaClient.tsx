@@ -184,12 +184,12 @@ export default function ValidacaoPropostaClient({
             onClick={() => handleAlterarStatus("CONFIRMADA")}
             className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs shadow-2xs"
           >
-            ✓ Confirmar e Oficializar Proposta (RN14)
+            ✓ Confirmar e Oficializar Proposta
           </button>
         </div>
       </section>
 
-      {/* Banner de Diagnóstico Geral (Seção 6.3 do PDF) */}
+      {/* Banner de Diagnóstico Geral */}
       <section
         className={`rounded-2xl border p-6 shadow-xs ${
           validacao.statusValidacao === "VALIDA_COMPLETA"
@@ -202,7 +202,7 @@ export default function ValidacaoPropostaClient({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <span className="text-[11px] font-black uppercase tracking-widest opacity-75">
-              Resultado da Auditoria Automática (Seção 6.3 do Documento)
+              Resultado da Auditoria da Grade
             </span>
             <h2 className="text-xl font-black mt-1">
               {validacao.statusValidacao === "VALIDA_COMPLETA" &&
@@ -210,15 +210,15 @@ export default function ValidacaoPropostaClient({
               {validacao.statusValidacao === "VALIDA_PARCIAL" &&
                 "⚠ Proposta Válida Parcialmente (Sem Conflitos, mas Incompleta)"}
               {validacao.statusValidacao === "COM_CONFLITOS" &&
-                "✕ Proposta com Conflitos de Restrições Obrigatórias"}
+                "✕ Proposta com Conflitos Detectados"}
             </h2>
             <p className="text-xs mt-1 opacity-90">
               {validacao.statusValidacao === "VALIDA_COMPLETA" &&
-                "Todas as atividades obrigatórias do semestre estão alocadas e nenhuma restrição (RN09 a RN15) foi violada. A proposta está pronta para confirmação final."}
+                "Todas as atividades do semestre estão alocadas e nenhuma restrição de espaço ou horário foi violada. A proposta está pronta para confirmação oficial."}
               {validacao.statusValidacao === "VALIDA_PARCIAL" &&
-                `Não há nenhum conflito de sala ou horário nas ${validacao.totalAlocacoes} aulas alocadas, porém ainda existem ${validacao.componentesPendentes} atividade(s) aguardando alocação.`}
+                `Não há conflito de salas ou horários nas ${validacao.totalAlocacoes} aulas alocadas, porém ainda existem ${validacao.componentesPendentes} atividade(s) aguardando horário/sala.`}
               {validacao.statusValidacao === "COM_CONFLITOS" &&
-                `Foram detectadas ${validacao.totalConflitos} violação(ões) de regras obrigatórias (choque de sala, choque de turma, capacidade insuficiente ou sala indisponível). De acordo com a RN14, corrija os conflitos antes de confirmar a proposta.`}
+                `Foram detectadas ${validacao.totalConflitos} sobreposição(ões) ou restrição(ões) não atendidas (choque de sala, choque de turma ou capacidade insuficiente). Corrija os conflitos antes de oficializar a grade.`}
             </p>
           </div>
 
@@ -250,7 +250,7 @@ export default function ValidacaoPropostaClient({
           </div>
           <div className="bg-white/80 p-3.5 rounded-xl">
             <span className="text-[10px] font-bold uppercase text-slate-500">
-              Pendentes (RF13)
+              Pendentes
             </span>
             <div className="text-xl font-black text-amber-700">
               {validacao.componentesPendentes}
@@ -258,7 +258,7 @@ export default function ValidacaoPropostaClient({
           </div>
           <div className="bg-white/80 p-3.5 rounded-xl">
             <span className="text-[10px] font-bold uppercase text-slate-500">
-              Conflitos (RF10)
+              Conflitos
             </span>
             <div className="text-xl font-black text-red-700">
               {validacao.totalConflitos}
@@ -267,17 +267,17 @@ export default function ValidacaoPropostaClient({
         </div>
       </section>
 
-      {/* Grid de Auditoria: Conflitos Detectados (RF10) + Atividades Não Alocadas e Motivos (RF13) */}
+      {/* Grid de Auditoria: Conflitos Detectados + Atividades Não Alocadas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Lista de Conflitos (RF10) */}
+        {/* Lista de Conflitos */}
         <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-4 border-b border-slate-200 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-extrabold text-slate-900">
-                1. Relatório de Conflitos de Restrições (RF10)
+                1. Relatório de Conflitos de Horários e Salas
               </h3>
               <p className="text-xs text-slate-500">
-                Verifica RN09 (Remoto), RN10 (Sala única), RN11 (Capacidade), RN12 (Manutenção/Janelas) e RN13
+                Verificação de sobreposições de sala, choque de horários e capacidade física
               </p>
             </div>
             <span
@@ -309,7 +309,7 @@ export default function ValidacaoPropostaClient({
                       {c.tipo}
                     </span>
                     <span className="text-[10px] font-bold text-red-600 uppercase">
-                      Violação Obrigatória (RN14)
+                      Conflito Impeditivo
                     </span>
                   </div>
                   <p className="text-xs font-bold text-slate-900 leading-relaxed">
@@ -321,15 +321,15 @@ export default function ValidacaoPropostaClient({
           )}
         </section>
 
-        {/* Lista de Atividades Não Alocadas e Diagnóstico de Impedimento (RF13) */}
+        {/* Lista de Atividades Não Alocadas */}
         <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-4 border-b border-slate-200 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-extrabold text-slate-900">
-                2. Atividades Não Alocadas e Diagnóstico (RF13)
+                2. Atividades Não Alocadas e Diagnóstico
               </h3>
               <p className="text-xs text-slate-500">
-                Lista de componentes sem horário atribuído e análise de causa
+                Lista de disciplinas com componentes pendentes de alocação
               </p>
             </div>
             <span
@@ -358,10 +358,10 @@ export default function ValidacaoPropostaClient({
                 const salasCapazes =
                   totalSalasCapazesPorTurma[comp.oferta.turma.codigo] ?? 0;
                 const motivoDiagnostico = !comp.requerSalaFisica
-                  ? "Atividade remota/DOL aguardando execução do motor FET ou alocação no Sábado."
+                  ? "Atividade remota ou online aguardando alocação automática ou definição de horário no sábado."
                   : salasCapazes === 0
-                  ? `IMPEDIMENTO CRÍTICO (RN11): A turma possui ${comp.oferta.turma.qtdAlunos} alunos, mas não há nenhuma sala ativa com capacidade >= ${comp.oferta.turma.qtdAlunos} lugares.`
-                  : `Oferta adicionada após a última geração ou desalocada manualmente (${salasCapazes} sala(s) ativa(s) comportam os ${comp.oferta.turma.qtdAlunos} alunos).`;
+                  ? `Impedimento de capacidade: a turma possui ${comp.oferta.turma.qtdAlunos} alunos, mas nenhuma sala ativa comporta essa quantidade.`
+                  : `Oferta pendente de alocação (${salasCapazes} sala(s) ativa(s) comportam os ${comp.oferta.turma.qtdAlunos} alunos).`;
 
                 return (
                   <div key={comp.id} className="p-4 space-y-2">
@@ -388,7 +388,7 @@ export default function ValidacaoPropostaClient({
                       <strong>{comp.oferta.turma.qtdAlunos}</strong>
                     </div>
                     <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-900">
-                      <strong>Diagnóstico RF13:</strong> {motivoDiagnostico}
+                      <strong>Diagnóstico:</strong> {motivoDiagnostico}
                     </div>
                   </div>
                 );

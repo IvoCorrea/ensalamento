@@ -254,7 +254,7 @@ export default function CursosMatrizesClient({
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
-            1. Cursos, Matrizes e Períodos (RF01-RF03)
+            1. Cursos, Matrizes e Períodos
           </button>
           <button
             onClick={() => setAbaAtiva("CATALOGO")}
@@ -264,12 +264,12 @@ export default function CursosMatrizesClient({
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
-            2. Catálogo Geral de Disciplinas & Reaproveitamento ({disciplinas.length}) (RF04 / RN05)
+            2. Catálogo Geral de Disciplinas ({disciplinas.length})
           </button>
         </div>
 
         <div className="text-xs text-slate-500">
-          <strong>RN05:</strong> Uma disciplina pode pertencer a múltiplos cursos e períodos curriculares.
+          Disciplinas cadastradas no catálogo podem ser vinculadas a múltiplos cursos e períodos.
         </div>
       </div>
 
@@ -332,7 +332,7 @@ export default function CursosMatrizesClient({
               className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-3"
             >
               <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
-                + Cadastrar Novo Curso (RF01)
+                + Cadastrar Novo Curso
               </h3>
               <div className="grid grid-cols-3 gap-2">
                 <div>
@@ -378,7 +378,7 @@ export default function CursosMatrizesClient({
                 className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-3"
               >
                 <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
-                  + Nova Matriz em {cursoAtual.codigo} (RF02 / RF03)
+                  + Nova Matriz em {cursoAtual.codigo}
                 </h3>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-600 mb-1">
@@ -479,7 +479,7 @@ export default function CursosMatrizesClient({
 
                   <div className="flex-1 w-full">
                     <label className="block text-[11px] font-bold text-blue-900 mb-1">
-                      Disciplina do Catálogo Institucional (RN05)
+                      Disciplina do Catálogo Institucional
                     </label>
                     <select
                       required
@@ -575,10 +575,10 @@ export default function CursosMatrizesClient({
             className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-3"
           >
             <h3 className="text-sm font-extrabold text-slate-900">
-              + Nova Disciplina no Catálogo (RF04)
+              + Nova Disciplina no Catálogo
             </h3>
             <p className="text-xs text-slate-500">
-              Disciplinas cadastradas aqui ficam disponíveis para vínculo nas matrizes de qualquer curso (RN05).
+              Disciplinas cadastradas aqui ficam disponíveis para vínculo nas matrizes de qualquer curso.
             </p>
             <div>
               <label className="block text-[11px] font-bold text-slate-600 mb-1">
@@ -642,7 +642,7 @@ export default function CursosMatrizesClient({
                     <th className="py-3 px-4">Código</th>
                     <th className="py-3 px-4">Disciplina</th>
                     <th className="py-3 px-4">CH Total</th>
-                    <th className="py-3 px-4">Matrizes Onde é Utilizada (RN05)</th>
+                    <th className="py-3 px-4">Matrizes Onde é Utilizada</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
